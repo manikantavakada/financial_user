@@ -68,7 +68,7 @@ class _IntroScreenState extends State<IntroScreen> {
                   children: [
                     // Logo at the top for all slides
                     Padding(
-                      padding: EdgeInsets.only(top: height * 0.05, bottom: height * 0.03),
+                      padding: EdgeInsets.only(top: height * 0.07, bottom: height * 0.03),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -171,60 +171,70 @@ class _IntroScreenState extends State<IntroScreen> {
                     // Buttons
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: width * 0.08),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (_currentPage < _slides.length - 1)
-                            TextButton(
-                              onPressed: _onSkip,
-                              child: Text(
-                                'Skip',
-                                style: TextStyle(
-                                  fontSize: scaleFont(18, context),
-                                  color: const Color(0xFF1E3A5F),
+                      child: _currentPage < _slides.length - 1
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                TextButton(
+                                  onPressed: _onSkip,
+                                  child: Text(
+                                    'Skip',
+                                    style: TextStyle(
+                                      fontSize: scaleFont(18, context),
+                                      color: const Color(0xFF1E3A5F),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                GestureDetector(
+                                  onTap: _onNext,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+                                        stops: [0.30, 0.70, 1],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'Next',
+                                      style: TextStyle(
+                                        fontSize: scaleFont(18, context),
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             )
-                          else
-                            const SizedBox(width: 60),
-                          if (_currentPage < _slides.length - 1)
-                            ElevatedButton(
-                              onPressed: _onNext,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF169060),
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Text(
-                                'Next',
-                                style: TextStyle(
-                                  fontSize: scaleFont(18, context),
-                                  color: Colors.white,
-                                ),
-                              ),
-                            )
-                          else
-                            ElevatedButton(
-                              onPressed: _onGetStarted,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF169060),
-                                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: Text(
-                                'Get Started',
-                                style: TextStyle(
-                                  fontSize: scaleFont(18, context),
-                                  color: Colors.white,
+                          : Center(
+                              child: GestureDetector(
+                                onTap: _onGetStarted,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+                                      stops: [0.30, 0.70, 1],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    'Get Started',
+                                    style: TextStyle(
+                                      fontSize: scaleFont(18, context),
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                        ],
-                      ),
                     ),
                     SizedBox(height: height * 0.05),
                   ],

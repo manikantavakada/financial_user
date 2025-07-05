@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'aboutus.dart';
 import 'advisor_request.dart';
 import 'advisor_request_details.dart';
+import 'edit_profile.dart';
 import 'profile.dart';
 import 'dashboard.dart';
 import 'splash_screen.dart';
@@ -36,6 +37,7 @@ class MyApp extends StatelessWidget {
         '/profile': (context) => ProfileScreen(),
         '/about': (context) => AboutUsScreen(),
         '/advisor_request_detail': (context) => AdvisorRequestDetailScreen(),
+        '/edit_profile': (context) => const EditProfileScreen(),
       },
     );
   }

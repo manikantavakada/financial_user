@@ -5,152 +5,131 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Example user data, replace with real data as needed
     final user = {
-      'name': 'Jim Halpert',
-      'email': 'jim@dundermifflin.com',
-      'phone': '+1 234 567 8900',
-      'address': '1725 Slough Ave, Scranton, PA',
-      'nationality': 'American',
-      'occupation': 'Salesman',
-      'maritalStatus': 'Married',
+      'name': 'Denial Rozar',
+      'email': 'denialrozer@gmail.com',
+      'school': 'The Lawrenceville School',
+      'nickname': 'r.denial',
+      'emergencyContact': 'Jessica Curl',
+      'emergencyNumber': '+1-987654321',
     };
 
     final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F8FF),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          'Profile',
-          style: TextStyle(
-            color: const Color(0xFF1E3A5F),
-            fontWeight: FontWeight.bold,
-            fontSize: width * 0.055,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+              stops: [0.3, 0.7, 1],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
           ),
         ),
         centerTitle: true,
+        title: const Text(
+          'Profile',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: Color(0xFF169060)),
+            icon: const Icon(Icons.edit, color: Colors.white),
             onPressed: () {
-              // Navigate to edit profile
               Navigator.pushNamed(context, '/edit_profile');
             },
           ),
         ],
       ),
-      body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: width * 0.07, vertical: height * 0.04),
-        child: Card(
-          elevation: 5,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: Padding(
-            padding: EdgeInsets.all(width * 0.06),
+
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.only(top: 20, bottom: 20),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF169060),
+                  Color(0xFF175B58),
+                  Color(0xFF19214F),
+                ],
+                stops: [0.3, 0.7, 1],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Center(
-                  child: CircleAvatar(
-                    radius: width * 0.13,
-                    backgroundColor: const Color(0xFF169060),
-                    child: Text(
-                      user['name']![0],
-                      style: TextStyle(
-                        fontSize: width * 0.13,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                CircleAvatar(
+                  radius: 44,
+                  backgroundImage: AssetImage(
+                    'assets/profile.jpg',
+                  ), // Replace with your image
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  user['name']!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 18),
-                Center(
-                  child: Text(
-                    user['name'] ?? '',
-                    style: TextStyle(
-                      fontSize: width * 0.06,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E3A5F),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Center(
-                  child: Text(
-                    user['email'] ?? '',
-                    style: TextStyle(
-                      fontSize: width * 0.04,
-                      color: const Color(0xFF666666),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Divider(color: Colors.grey[300]),
-                _profileRow('Phone', user['phone'] ?? '', width),
-                _profileRow('Address', user['address'] ?? '', width),
-                _profileRow('Nationality', user['nationality'] ?? '', width),
-                _profileRow('Occupation', user['occupation'] ?? '', width),
-                _profileRow('Marital Status', user['maritalStatus'] ?? '', width),
-                const SizedBox(height: 18),
-                Center(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Handle logout
-                      Navigator.pushReplacementNamed(context, '/login');
-                    },
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    label: const Text('Logout'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF242C57),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: width * 0.08,
-                        vertical: height * 0.018,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      textStyle: TextStyle(
-                        fontSize: width * 0.045,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: 4),
+                Text(
+                  user['email']!,
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
                 ),
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 24),
+          _infoTile(Icons.school, 'School', user['school']!),
+          _infoTile(Icons.person_outline, 'Nick Name', user['nickname']!),
+          _infoTile(
+            Icons.contacts,
+            'Emergency Contact',
+            user['emergencyContact']!,
+          ),
+          _infoTile(Icons.phone, 'Emergency Number', user['emergencyNumber']!),
+        ],
       ),
     );
   }
 
-  Widget _profileRow(String label, String value, double width) {
+  Widget _infoTile(IconData icon, String title, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
-          SizedBox(
-            width: width * 0.32,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: const Color(0xFF242C57),
-                fontWeight: FontWeight.w600,
-                fontSize: width * 0.04,
-              ),
-            ),
+          CircleAvatar(
+            backgroundColor: const Color(0xFFE5F2F1),
+            child: Icon(icon, color: Color(0xFF175B58)),
           ),
+          const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              value,
-              style: TextStyle(
-                color: const Color(0xFF666666),
-                fontSize: width * 0.04,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(color: Colors.black87, fontSize: 15),
+                ),
+              ],
             ),
           ),
         ],

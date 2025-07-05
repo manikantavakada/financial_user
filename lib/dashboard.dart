@@ -23,116 +23,141 @@ class DashboardScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F8FF),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          'Dashboard',
-          style: TextStyle(
-            color: const Color(0xFF1E3A5F),
-            fontWeight: FontWeight.bold,
-            fontSize: scaleFont(22, context),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 16,
+              bottom: 20,
+            ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+                stops: [0.30, 0.70, 1],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(22),
+                bottomRight: Radius.circular(22),
+              ),
+            ),
+            child: Center(
+              child: Text(
+                'Dashboard',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: scaleFont(22, context),
+                ),
+              ),
+            ),
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: Padding(
-        padding: EdgeInsets.symmetric(horizontal: width * 0.06, vertical: height * 0.03),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Advisor Requests',
-              style: TextStyle(
-                fontSize: scaleFont(18, context),
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E3A5F),
+          Expanded(
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: width * 0.06,
+                vertical: height * 0.03,
               ),
-            ),
-            SizedBox(height: height * 0.02),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _dashboardCard(
-                  context,
-                  title: 'Total',
-                  count: totalRequests,
-                  color: const Color(0xFF242C57),
-                  icon: Icons.list_alt,
-                ),
-                _dashboardCard(
-                  context,
-                  title: 'Completed',
-                  count: completedRequests,
-                  color: const Color(0xFF169060),
-                  icon: Icons.check_circle_outline,
-                ),
-                _dashboardCard(
-                  context,
-                  title: 'Pending',
-                  count: pendingRequests,
-                  color: const Color(0xFF164454),
-                  icon: Icons.pending_actions,
-                ),
-              ],
-            ),
-            SizedBox(height: height * 0.04),
-            Text(
-              'Quick Actions',
-              style: TextStyle(
-                fontSize: scaleFont(18, context),
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E3A5F),
-              ),
-            ),
-            SizedBox(height: height * 0.02),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/advisor_requests');
-                    },
-                    icon: const Icon(Icons.assignment, color: Colors.white),
-                    label: const Text('View Requests'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF169060),
-                      padding: EdgeInsets.symmetric(vertical: height * 0.025),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      textStyle: TextStyle(
-                        fontSize: scaleFont(16, context),
-                        fontWeight: FontWeight.bold,
-                      ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Advisor Requests',
+                    style: TextStyle(
+                      fontSize: scaleFont(18, context),
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1E3A5F),
                     ),
                   ),
-                ),
-                SizedBox(width: width * 0.04),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Add new advisor request
-                    },
-                    icon: const Icon(Icons.add, color: Colors.white),
-                    label: const Text('Add Request'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF242C57),
-                      padding: EdgeInsets.symmetric(vertical: height * 0.025),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                  SizedBox(height: height * 0.02),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _dashboardCard(
+                        context,
+                        title: 'Total',
+                        count: totalRequests,
+                        color: const Color(0xFF242C57),
+                        icon: Icons.list_alt,
                       ),
-                      textStyle: TextStyle(
-                        fontSize: scaleFont(16, context),
-                        fontWeight: FontWeight.bold,
+                      _dashboardCard(
+                        context,
+                        title: 'Completed',
+                        count: completedRequests,
+                        color: const Color(0xFF169060),
+                        icon: Icons.check_circle_outline,
                       ),
+                      _dashboardCard(
+                        context,
+                        title: 'Pending',
+                        count: pendingRequests,
+                        color: const Color(0xFF164454),
+                        icon: Icons.pending_actions,
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: height * 0.04),
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: scaleFont(18, context),
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF1E3A5F),
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(height: height * 0.02),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pushNamed(context, '/advisor_requests');
+                          },
+                          icon: const Icon(Icons.assignment, color: Colors.white),
+                          label: const Text('View Requests'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF169060),
+                            padding: EdgeInsets.symmetric(vertical: height * 0.025),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            textStyle: TextStyle(
+                              fontSize: scaleFont(16, context),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: width * 0.04),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            // Add new advisor request
+                          },
+                          icon: const Icon(Icons.add, color: Colors.white),
+                          label: const Text('Add Request'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF242C57),
+                            padding: EdgeInsets.symmetric(vertical: height * 0.025),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            textStyle: TextStyle(
+                              fontSize: scaleFont(16, context),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

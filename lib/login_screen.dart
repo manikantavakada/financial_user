@@ -33,24 +33,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
   // Mock login with static data
   Future<void> handleLogin() async {
-    if (!validateForm()) return;
+    //if (!validateForm()) return;
 
-    setState(() {
-      _isLoading = true;
-      _error = '';
-    });
+    // setState(() {
+    //   _isLoading = true;
+    //   _error = '';
+    // });
 
-    await Future.delayed(const Duration(seconds: 1));
-    if (_emailController.text == "a" && _passwordController.text == "a") {
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      setState(() {
-        _error = 'Invalid credentials';
-      });
-    }
-    setState(() {
-      _isLoading = false;
-    });
+    //await Future.delayed(const Duration(seconds: 1));
+    // if (_emailController.text == "a" && _passwordController.text == "a") {
+    //   Navigator.pushReplacementNamed(context, '/home');
+    // } else {
+    //   setState(() {
+    //     _error = 'Invalid credentials';
+    //   });
+    // }
+    // setState(() {
+    //   _isLoading = false;
+    // });
+    Navigator.pushReplacementNamed(context, '/home');
   }
 
   @override

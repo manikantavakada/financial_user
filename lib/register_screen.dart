@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 
 import 'dart:convert';
 import 'dart:io' if (dart.library.html) 'dart:html' as html;
@@ -6,9 +5,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
-=======
-import 'package:flutter/material.dart';
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -26,17 +22,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _altPhoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
-<<<<<<< HEAD
-=======
-  final _stateController = TextEditingController();
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
   final _zipController = TextEditingController();
   final _nationalityController = TextEditingController();
   final _tfnController = TextEditingController();
   final _occupationController = TextEditingController();
   String? _maritalStatus;
   String? _employmentStatus;
-<<<<<<< HEAD
   XFile? _clntImage; // Changed to XFile for cross-platform compatibility
 
   // Static FCM token
@@ -48,8 +39,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String? _selectedCountryId;
   String? _selectedStateId;
   bool _isFetchingStates = false; // Track state fetching status
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
   bool _isLoading = false;
   String _error = '';
@@ -66,18 +55,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _occupationError = '';
   String _maritalStatusError = '';
   String _employmentStatusError = '';
-<<<<<<< HEAD
   String _imageError = '';
 
   final String baseUrl = 'https://ss.singledeck.in/api/v1/'; // Replace with your actual base URL
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
 
-<<<<<<< HEAD
   @override
   void initState() {
     super.initState();
@@ -156,8 +141,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   // Select date
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -171,10 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-<<<<<<< HEAD
   // Validate form
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
   bool validateForm() {
     bool isValid = true;
     setState(() {
@@ -188,20 +168,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _phoneError = _phoneController.text.trim().isEmpty ? 'Primary phone required' : '';
       _addressError = _addressController.text.trim().isEmpty ? 'Address required' : '';
       _cityError = _cityController.text.trim().isEmpty ? 'City required' : '';
-<<<<<<< HEAD
       _stateError = _selectedStateId == null ? 'State required' : '';
-=======
-      _stateError = _stateController.text.trim().isEmpty ? 'State required' : '';
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
       _zipError = _zipController.text.trim().isEmpty ? 'Zip required' : '';
       _nationalityError = _nationalityController.text.trim().isEmpty ? 'Nationality required' : '';
       _occupationError = _occupationController.text.trim().isEmpty ? 'Occupation required' : '';
       _maritalStatusError = _maritalStatus == null ? 'Marital status required' : '';
       _employmentStatusError = _employmentStatus == null ? 'Employment status required' : '';
-<<<<<<< HEAD
       _imageError = _clntImage == null ? 'Profile image required' : '';
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
       isValid = [
         _fullNameError,
@@ -217,30 +190,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _occupationError,
         _maritalStatusError,
         _employmentStatusError,
-<<<<<<< HEAD
         _imageError,
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
       ].every((e) => e.isEmpty);
     });
     return isValid;
   }
 
-<<<<<<< HEAD
   // Register API call
   Future<void> handleRegister() async {
     //if (!validateForm()) return;
-=======
-  Future<void> handleRegister() async {
-    if (!validateForm()) return;
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
     setState(() {
       _isLoading = true;
       _error = '';
     });
 
-<<<<<<< HEAD
     try {
       var request = http.MultipartRequest('POST', Uri.parse('${baseUrl}clients/client-register/'));
       request.fields['email'] = _emailController.text.trim();
@@ -301,14 +265,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _isLoading = false;
       });
     }
-=======
-    // Simulate registration delay
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    Navigator.pushReplacementNamed(context, '/login');
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
   }
 
   @override
@@ -367,10 +323,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
-=======
-                  // Full Name
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   TextField(
                     controller: _fullNameController,
                     decoration: InputDecoration(
@@ -403,13 +355,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
-=======
-                  // Add this for spacing after the first field (and its error)
-                  SizedBox(height: height * 0.018),
-                  // DOB
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   TextField(
                     controller: _dobController,
                     readOnly: true,
@@ -445,12 +391,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
-=======
-                    SizedBox(height: height * 0.018),
-                  // Gender
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   DropdownButtonFormField<String>(
                     value: _gender,
                     items: ['Male', 'Female', 'Other']
@@ -486,12 +427,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
-=======
-                    SizedBox(height: height * 0.018),
-                  // Email
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   TextField(
                     controller: _emailController,
                     decoration: InputDecoration(
@@ -527,12 +463,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
-=======
-                    SizedBox(height: height * 0.018),
-                  // Primary Phone
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   TextField(
                     controller: _phoneController,
                     decoration: InputDecoration(
@@ -566,12 +497,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
-=======
-                    SizedBox(height: height * 0.018),
-                  // Secondary Phone
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   TextField(
                     controller: _altPhoneController,
                     decoration: InputDecoration(
@@ -594,10 +520,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     keyboardType: TextInputType.phone,
                   ),
-<<<<<<< HEAD
-=======
-                  // Address
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   SizedBox(height: height * 0.018),
                   TextField(
                     controller: _addressController,
@@ -631,7 +553,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
                   // Country Dropdown
                   _countries.isEmpty
@@ -672,18 +593,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           },
                           decoration: InputDecoration(
                             labelText: 'Country',
-=======
-                  // City & State
-                  SizedBox(height: height * 0.018),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _cityController,
-                          decoration: InputDecoration(
-                            hintText: 'City',
-                            hintStyle: TextStyle(fontSize: scaleFont(16)),
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(height * 0.01),
                               borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
@@ -700,7 +609,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
                   // State Dropdown
                   _selectedCountryId == null
@@ -771,50 +679,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       padding: EdgeInsets.only(top: 0, bottom: height * 0.01),
                       child: Text(
                         _stateError,
-=======
-                      ),
-                      SizedBox(width: width * 0.03),
-                      Expanded(
-                        child: TextField(
-                          controller: _stateController,
-                          decoration: InputDecoration(
-                            hintText: 'State/Region',
-                            hintStyle: TextStyle(fontSize: scaleFont(16)),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: width * 0.03,
-                              vertical: height * 0.015,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_cityError.isNotEmpty || _stateError.isNotEmpty)
-                    Padding(
-                      padding: EdgeInsets.only(top: 0, bottom: height * 0.01),
-                      child: Text(
-                        '${_cityError.isNotEmpty ? _cityError : ''} ${_stateError.isNotEmpty ? _stateError : ''}',
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                         style: TextStyle(
                           fontSize: scaleFont(12),
                           color: Colors.red,
                         ),
                       ),
                     ),
-<<<<<<< HEAD
-=======
-                  // Zip & Nationality
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   SizedBox(height: height * 0.018),
                   Row(
                     children: [
@@ -878,7 +748,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
                   SizedBox(height: height * 0.018),
                   GestureDetector(
                     onTap: _selectImage,
@@ -917,9 +786,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-=======
-                  // TFN
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   SizedBox(height: height * 0.018),
                   TextField(
                     controller: _tfnController,
@@ -942,10 +808,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-<<<<<<< HEAD
-=======
-                  // Occupation
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   SizedBox(height: height * 0.018),
                   TextField(
                     controller: _occupationController,
@@ -979,10 +841,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
-=======
-                  // Marital Status
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   SizedBox(height: height * 0.018),
                   DropdownButtonFormField<String>(
                     value: _maritalStatus,
@@ -1019,10 +877,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-<<<<<<< HEAD
-=======
-                  // Employment Status
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   SizedBox(height: height * 0.018),
                   DropdownButtonFormField<String>(
                     value: _employmentStatus,
@@ -1126,8 +980,4 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ],
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316

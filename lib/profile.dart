@@ -69,11 +69,7 @@ class ProfileScreen extends StatelessWidget {
                 CircleAvatar(
                   radius: 44,
                   backgroundImage: AssetImage(
-<<<<<<< HEAD
                     'assets/profile.png',
-=======
-                    'assets/profile.jpg',
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                   ), // Replace with your image
                 ),
                 const SizedBox(height: 12),

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -13,9 +12,6 @@ import 'package:pointycastle/key_generators/api.dart';
 import 'package:pointycastle/key_generators/rsa_key_generator.dart';
 import 'package:pointycastle/src/platform_check/platform_check.dart';
 import 'package:asn1lib/asn1lib.dart';
-=======
-import 'package:flutter/material.dart';
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,7 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
   String _passwordError = '';
   bool _showPassword = false;
 
-<<<<<<< HEAD
   final String baseUrl =
       'https://ss.singledeck.in/api/v1/'; // Replace with your actual base URL
 
@@ -46,8 +41,6 @@ fHoF/nK85//sVQdHCj0rF5PDfvTGOnDeYvN/cdI/cnqQCsSb5ThqO/lr5w+hPuPq
 ri1okYc3yE2cWaYHSQIDAQAB
 -----END PUBLIC KEY-----''';
 
-=======
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
@@ -55,7 +48,6 @@ ri1okYc3yE2cWaYHSQIDAQAB
   bool validateForm() {
     bool isValid = true;
     setState(() {
-<<<<<<< HEAD
       final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
       _emailError = _emailController.text.trim().isEmpty
           ? 'Email is required'
@@ -65,16 +57,11 @@ ri1okYc3yE2cWaYHSQIDAQAB
       _passwordError = _passwordController.text.trim().isEmpty
           ? 'Password is required'
           : '';
-=======
-      _emailError = _emailController.text.trim().isEmpty ? 'Email is required' : '';
-      _passwordError = _passwordController.text.trim().isEmpty ? 'Password is required' : '';
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
       isValid = _emailError.isEmpty && _passwordError.isEmpty;
     });
     return isValid;
   }
 
-<<<<<<< HEAD
   // Parse PEM public key
   crypto.RSAPublicKey parsePublicKeyFromPem(String pem) {
     final key = pem
@@ -113,18 +100,12 @@ ri1okYc3yE2cWaYHSQIDAQAB
 
   Future<void> handleLogin() async {
     // if (!validateForm()) return;
-=======
-  // Mock login with static data
-  Future<void> handleLogin() async {
-    //if (!validateForm()) return;
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
 
     // setState(() {
     //   _isLoading = true;
     //   _error = '';
     // });
 
-<<<<<<< HEAD
     // try {
     //   final plainPassword = _passwordController.text.trim();
     //   final encryptedPassword = encryptPassword(plainPassword);
@@ -202,19 +183,6 @@ ri1okYc3yE2cWaYHSQIDAQAB
     //     _isLoading = false;
     //   });
     // }
-=======
-    //await Future.delayed(const Duration(seconds: 1));
-    // if (_emailController.text == "a" && _passwordController.text == "a") {
-    //   Navigator.pushReplacementNamed(context, '/home');
-    // } else {
-    //   setState(() {
-    //     _error = 'Invalid credentials';
-    //   });
-    // }
-    // setState(() {
-    //   _isLoading = false;
-    // });
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
     Navigator.pushReplacementNamed(context, '/home');
   }
 
@@ -236,13 +204,7 @@ ri1okYc3yE2cWaYHSQIDAQAB
                   children: [
                     Container(
                       padding: const EdgeInsets.all(5),
-<<<<<<< HEAD
                       decoration: const BoxDecoration(color: Color(0xFF242C57)),
-=======
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF242C57),
-                      ),
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -265,15 +227,11 @@ ri1okYc3yE2cWaYHSQIDAQAB
                             margin: const EdgeInsets.only(left: 8),
                             decoration: const BoxDecoration(
                               gradient: LinearGradient(
-<<<<<<< HEAD
                                 colors: [
                                   Color(0xFF169060),
                                   Color(0xFF175B58),
                                   Color(0xFF19214F),
                                 ],
-=======
-                                colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                                 stops: [0.30, 0.70, 1],
                                 begin: Alignment.centerLeft,
                                 end: Alignment.centerRight,
@@ -359,18 +317,12 @@ ri1okYc3yE2cWaYHSQIDAQAB
                           right: 10,
                           top: height * 0.02,
                           child: GestureDetector(
-<<<<<<< HEAD
                             onTap: () =>
                                 setState(() => _showPassword = !_showPassword),
                             child: Icon(
                               _showPassword
                                   ? Icons.visibility
                                   : Icons.visibility_off,
-=======
-                            onTap: () => setState(() => _showPassword = !_showPassword),
-                            child: Icon(
-                              _showPassword ? Icons.visibility : Icons.visibility_off,
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                               size: scaleFont(20),
                               color: const Color(0xFF666666),
                             ),
@@ -398,12 +350,8 @@ ri1okYc3yE2cWaYHSQIDAQAB
                             children: [
                               Checkbox(
                                 value: _rememberMe,
-<<<<<<< HEAD
                                 onChanged: (value) =>
                                     setState(() => _rememberMe = value!),
-=======
-                                onChanged: (value) => setState(() => _rememberMe = value!),
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                               ),
                               Text(
                                 'Remember me',
@@ -431,15 +379,11 @@ ri1okYc3yE2cWaYHSQIDAQAB
                       width: width * 0.85,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-<<<<<<< HEAD
                           colors: [
                             Color(0xFF169060),
                             Color(0xFF175B58),
                             Color(0xFF19214F),
                           ],
-=======
-                          colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                           stops: [0.30, 0.70, 1],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
@@ -458,13 +402,9 @@ ri1okYc3yE2cWaYHSQIDAQAB
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-<<<<<<< HEAD
                           padding: EdgeInsets.symmetric(
                             vertical: height * 0.025,
                           ),
-=======
-                          padding: EdgeInsets.symmetric(vertical: height * 0.025),
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -491,12 +431,8 @@ ri1okYc3yE2cWaYHSQIDAQAB
                           ),
                         ),
                         GestureDetector(
-<<<<<<< HEAD
                           onTap: () =>
                               Navigator.pushNamed(context, '/register'),
-=======
-                          onTap: () => Navigator.pushNamed(context, '/register'),
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316
                           child: Text(
                             'Register now!',
                             style: TextStyle(
@@ -536,8 +472,4 @@ ri1okYc3yE2cWaYHSQIDAQAB
       ),
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 241c32e004e6b0b7e56c85f89a78edb6114a6316

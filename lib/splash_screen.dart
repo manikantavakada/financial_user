@@ -5,72 +5,64 @@ class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeIn;
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 2), () {
+    _controller =
+        AnimationController(duration: const Duration(seconds: 2), vsync: this);
+    _fadeIn = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _controller.forward();
+    Timer(const Duration(seconds: 3), () {
       Navigator.pushReplacementNamed(context, '/intro1');
     });
   }
 
-  double scaleFont(double size) {
-    return size * MediaQuery.of(context).size.width / 375;
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height;
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFFFF),
+      backgroundColor: isDark
+          ? const Color(0xFF191B29)
+          : const Color.fromARGB(255, 255, 255, 255),
       body: Center(
-        child: Container(
-          padding: const EdgeInsets.all(5),
-          decoration: const BoxDecoration(
-            color: Color(0xFF242C57),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 15),
-                child: Text(
-                  'Financial',
-                  style: TextStyle(
-                    fontSize: scaleFont(20),
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+        child: FadeTransition(
+          opacity: _fadeIn,
+          child: Container(
+            decoration: BoxDecoration(
+              color:
+                  isDark ? Colors.white10 : Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black26
+                      : Colors.blue.withOpacity(0.08),
+                  blurRadius: 28,
+                  offset: const Offset(0, 10),
                 ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: height * 0.03,
-                  vertical: height * 0.01,
-                ),
-                margin: const EdgeInsets.only(left: 8),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-                    stops: [0.30, 0.70, 1],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                ),
-                child: Text(
-                  'Advisor',
-                  style: TextStyle(
-                    fontSize: scaleFont(20),
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+              ],
+            ),
+            padding: const EdgeInsets.all(32),
+            child: Image.asset(
+              'assets/Polar_logo.png',
+              width: 170,
+              height: 170,
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       ),

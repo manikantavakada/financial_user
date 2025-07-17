@@ -1,4 +1,29 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:lottie/lottie.dart';
+
+// --- RSA utility imports ----
+import 'package:encrypt/encrypt.dart';
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:encrypt/encrypt.dart' show RSAKeyParser;
+import 'package:shared_preferences/shared_preferences.dart';
+
+// ---- Place your server's PEM public key here ----
+const String serverPublicKeyPem = """
+-----BEGIN PUBLIC KEY-----
+\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC9ITaISnuVTdhWW0008bVKqwMF\nEkxBB4dA0svzCuQMmRXCZ9EFP8PL4VVqsju3lNdcpgRa8MzwCPRJ932+M7d6WNPz\nfHoF/nK85//sVQdHCj0rF5PDfvTGOnDeYvN/cdI/cnqQCsSb5ThqO/lr5w+hPuPq\nri1okYc3yE2cWaYHSQIDAQAB\n
+-----END PUBLIC KEY-----
+""";
+
+String encryptPasswordRSA(String password, String publicKeyPem) {
+  final publicKey = RSAKeyParser().parse(publicKeyPem) as RSAPublicKey;
+  final encrypter = Encrypter(
+    RSA(publicKey: publicKey, encoding: RSAEncoding.PKCS1),
+  );
+  final encrypted = encrypter.encrypt(password);
+  return base64.encode(encrypted.bytes);
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -24,34 +49,111 @@ class _LoginScreenState extends State<LoginScreen> {
   bool validateForm() {
     bool isValid = true;
     setState(() {
-      _emailError = _emailController.text.trim().isEmpty ? 'Email is required' : '';
-      _passwordError = _passwordController.text.trim().isEmpty ? 'Password is required' : '';
+      _emailError = _emailController.text.trim().isEmpty
+          ? 'Email is required'
+          : '';
+      _passwordError = _passwordController.text.trim().isEmpty
+          ? 'Password is required'
+          : '';
       isValid = _emailError.isEmpty && _passwordError.isEmpty;
     });
     return isValid;
   }
 
-  // Mock login with static data
   Future<void> handleLogin() async {
-    //if (!validateForm()) return;
+    if (!validateForm()) return;
 
-    // setState(() {
-    //   _isLoading = true;
-    //   _error = '';
-    // });
+    setState(() {
+      _isLoading = true;
+      _error = '';
+    });
 
-    //await Future.delayed(const Duration(seconds: 1));
-    // if (_emailController.text == "a" && _passwordController.text == "a") {
-    //   Navigator.pushReplacementNamed(context, '/home');
-    // } else {
-    //   setState(() {
-    //     _error = 'Invalid credentials';
-    //   });
-    // }
-    // setState(() {
-    //   _isLoading = false;
-    // });
-    Navigator.pushReplacementNamed(context, '/home');
+    // Encrypt the password using the RSA utility function
+    String encryptedPassword = encryptPasswordRSA(
+      _passwordController.text.trim(),
+      serverPublicKeyPem,
+    );
+
+    final url = Uri.parse(
+      'https://ss.singledeck.in/api/v1/clients/client-login/',
+    );
+    const String fcmToken = 'staticfcm1234567890';
+
+    final body = {
+      "username": _emailController.text.trim(),
+      "password": encryptedPassword,
+      "fcm_token": fcmToken,
+    };
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse the JSON response
+        final json = jsonDecode(response.body);
+
+        // Extract tokens & user details
+        String accessToken = json['session_token']?['access'] ?? '';
+        String refreshToken = json['session_token']?['refresh'] ?? '';
+        Map<String, dynamic> userMap = json['user'] ?? {};
+
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        
+        prefs.setString('access_token', accessToken);
+        prefs.setString('refresh_token', refreshToken);
+        prefs.setString(
+          'user',
+          jsonEncode(userMap),
+        ); // Store user as JSON string
+        prefs.setInt('client_id', json['user']?['clnt_id'] ?? 0);
+
+        // Optional: Show snackbar or toast
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Login successful!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        // Error feedback
+        String errorMsg = 'Login failed';
+        try {
+          final json = jsonDecode(response.body);
+          errorMsg = json['message']?.toString() ?? response.body;
+        } catch (_) {
+          errorMsg = response.body;
+        }
+
+        if (mounted) {
+          setState(() {
+            _error = errorMsg;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMsg),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() {
+        _error = "Network error: $e";
+      });
+    }
+    setState(() {
+      _isLoading = false;
+    });
   }
 
   @override
@@ -70,52 +172,19 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF242C57),
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: height * 0.02,
+                        bottom: height * 0.02,
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 15),
-                            child: Text(
-                              'Financial',
-                              style: TextStyle(
-                                fontSize: scaleFont(20),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: height * 0.03,
-                              vertical: height * 0.01,
-                            ),
-                            margin: const EdgeInsets.only(left: 8),
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-                                stops: [0.30, 0.70, 1],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                            ),
-                            child: Text(
-                              'Advisor',
-                              style: TextStyle(
-                                fontSize: scaleFont(20),
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: Image.asset(
+                        'assets/Polar_logo.png', // <-- update the path as needed
+                        width: height * 0.18,
+                        height: height * 0.18,
+                        fit: BoxFit.contain,
                       ),
                     ),
-                    SizedBox(height: height * 0.04),
+
                     Text(
                       'Log In',
                       style: TextStyle(
@@ -183,9 +252,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           right: 10,
                           top: height * 0.02,
                           child: GestureDetector(
-                            onTap: () => setState(() => _showPassword = !_showPassword),
+                            onTap: () =>
+                                setState(() => _showPassword = !_showPassword),
                             child: Icon(
-                              _showPassword ? Icons.visibility : Icons.visibility_off,
+                              _showPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                               size: scaleFont(20),
                               color: const Color(0xFF666666),
                             ),
@@ -213,7 +285,8 @@ class _LoginScreenState extends State<LoginScreen> {
                             children: [
                               Checkbox(
                                 value: _rememberMe,
-                                onChanged: (value) => setState(() => _rememberMe = value!),
+                                onChanged: (value) =>
+                                    setState(() => _rememberMe = value!),
                               ),
                               Text(
                                 'Remember me',
@@ -241,7 +314,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: width * 0.85,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+                          colors: [
+                            Color(0xFF169060),
+                            Color(0xFF175B58),
+                            Color(0xFF19214F),
+                          ],
                           stops: [0.30, 0.70, 1],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
@@ -260,7 +337,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
                           shadowColor: Colors.transparent,
-                          padding: EdgeInsets.symmetric(vertical: height * 0.025),
+                          padding: EdgeInsets.symmetric(
+                            vertical: height * 0.025,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -287,7 +366,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => Navigator.pushNamed(context, '/register'),
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/register'),
                           child: Text(
                             'Register now!',
                             style: TextStyle(

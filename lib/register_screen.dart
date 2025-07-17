@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io' if (dart.library.html) 'dart:html' as html;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -16,13 +21,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _altPhoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
-  final _stateController = TextEditingController();
   final _zipController = TextEditingController();
   final _nationalityController = TextEditingController();
   final _tfnController = TextEditingController();
   final _occupationController = TextEditingController();
   String? _maritalStatus;
   String? _employmentStatus;
+  XFile? _clntImage; // Changed to XFile for cross-platform compatibility
+
+  // Static FCM token
+  final String _fcmToken = 'static-fcm-token';
+
+  // State and country dropdown data
+  List<Map<String, dynamic>> _countries = [];
+  List<Map<String, dynamic>> _states = [];
+  String? _selectedCountryId;
+  String? _selectedStateId;
+  bool _isFetchingStates = false; // Track state fetching status
 
   bool _isLoading = false;
   String _error = '';
@@ -39,11 +54,101 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _occupationError = '';
   String _maritalStatusError = '';
   String _employmentStatusError = '';
+  String _imageError = '';
+
+  final String baseUrl =
+      'https://ss.singledeck.in/api/v1/'; // Replace with your actual base URL
 
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _fetchCountries();
+  }
+
+  // Fetch countries from API
+  Future<void> _fetchCountries() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}master-entry/get-countries/'),
+      );
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final List<dynamic> data = responseData['data'] ?? [];
+        print('Countries Response: ${response.body}');
+        setState(() {
+          _countries = data
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load countries: ${response.statusCode}';
+        });
+        print('Countries Error: Status ${response.statusCode}');
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error fetching countries: $e';
+      });
+      print('Countries Exception: $e');
+    }
+  }
+
+  // Fetch states based on selected country
+  Future<void> _fetchStates(String countryId) async {
+    setState(() {
+      _isFetchingStates = true;
+      _states = [];
+      _selectedStateId = null;
+    });
+    try {
+      final response = await http.get(
+        Uri.parse('${baseUrl}master-entry/get-states/?cntr_id=$countryId'),
+      );
+      print('States Response: ${response.body}');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        final List<dynamic> data = responseData['data'] ?? [];
+        setState(() {
+          _states = data
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
+          _isFetchingStates = false;
+          print('States Loaded: $_states');
+        });
+      } else {
+        setState(() {
+          _error = 'Failed to load states: ${response.statusCode}';
+          _isFetchingStates = false;
+        });
+        print('States Error: Status ${response.statusCode}');
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error fetching states: $e';
+        _isFetchingStates = false;
+      });
+      print('States Exception: $e');
+    }
+  }
+
+  // Select image
+  Future<void> _selectImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _clntImage = pickedFile;
+        _imageError = '';
+      });
+    }
+  }
+
+  // Select date
   Future<void> _selectDate() async {
     DateTime? picked = await showDatePicker(
       context: context,
@@ -52,30 +157,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      _dobController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      _dobController.text =
+          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
       setState(() {});
     }
   }
 
+  // Validate form
   bool validateForm() {
     bool isValid = true;
     setState(() {
-      _fullNameError = _fullNameController.text.trim().isEmpty ? 'Full name required' : '';
-      _dobError = _dobController.text.trim().isEmpty ? 'Date of birth required' : '';
+      _fullNameError = _fullNameController.text.trim().isEmpty
+          ? 'Full name required'
+          : '';
+      _dobError = _dobController.text.trim().isEmpty
+          ? 'Date of birth required'
+          : '';
       _genderError = _gender == null ? 'Gender required' : '';
       final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-      _emailError = _emailController.text.trim().isEmpty || !emailRegex.hasMatch(_emailController.text)
+      _emailError =
+          _emailController.text.trim().isEmpty ||
+              !emailRegex.hasMatch(_emailController.text)
           ? 'Valid email required'
           : '';
-      _phoneError = _phoneController.text.trim().isEmpty ? 'Primary phone required' : '';
-      _addressError = _addressController.text.trim().isEmpty ? 'Address required' : '';
+      _phoneError = _phoneController.text.trim().isEmpty
+          ? 'Primary phone required'
+          : '';
+      _addressError = _addressController.text.trim().isEmpty
+          ? 'Address required'
+          : '';
       _cityError = _cityController.text.trim().isEmpty ? 'City required' : '';
-      _stateError = _stateController.text.trim().isEmpty ? 'State required' : '';
+      _stateError = _selectedStateId == null ? 'State required' : '';
       _zipError = _zipController.text.trim().isEmpty ? 'Zip required' : '';
-      _nationalityError = _nationalityController.text.trim().isEmpty ? 'Nationality required' : '';
-      _occupationError = _occupationController.text.trim().isEmpty ? 'Occupation required' : '';
-      _maritalStatusError = _maritalStatus == null ? 'Marital status required' : '';
-      _employmentStatusError = _employmentStatus == null ? 'Employment status required' : '';
+      _nationalityError = _nationalityController.text.trim().isEmpty
+          ? 'Nationality required'
+          : '';
+      _occupationError = _occupationController.text.trim().isEmpty
+          ? 'Occupation required'
+          : '';
+      _maritalStatusError = _maritalStatus == null
+          ? 'Marital status required'
+          : '';
+      _employmentStatusError = _employmentStatus == null
+          ? 'Employment status required'
+          : '';
+      _imageError = _clntImage == null ? 'Profile image required' : '';
 
       isValid = [
         _fullNameError,
@@ -91,25 +217,108 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _occupationError,
         _maritalStatusError,
         _employmentStatusError,
+        _imageError,
       ].every((e) => e.isEmpty);
     });
     return isValid;
   }
 
+  // Register API call
   Future<void> handleRegister() async {
-    if (!validateForm()) return;
+    //if (!validateForm()) return;
 
     setState(() {
       _isLoading = true;
       _error = '';
     });
 
-    // Simulate registration delay
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    Navigator.pushReplacementNamed(context, '/login');
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${baseUrl}clients/client-register/'),
+      );
+      request.fields['email'] = _emailController.text.trim();
+      request.fields['mobile'] = _phoneController.text.trim();
+      request.fields['full_name'] = _fullNameController.text.trim();
+      request.fields['dob'] = _dobController.text.trim();
+      request.fields['gender'] = _gender!.toLowerCase();
+      request.fields['alt_phone'] = _altPhoneController.text.trim();
+      request.fields['address'] = _addressController.text.trim();
+      request.fields['city'] = _cityController.text.trim();
+      request.fields['state'] = _selectedStateId!;
+      request.fields['country'] = _selectedCountryId!;
+      request.fields['zip'] = _zipController.text.trim();
+      request.fields['nationality'] = _nationalityController.text.trim();
+      request.fields['tfn'] = _tfnController.text.trim();
+      request.fields['occupation'] = _occupationController.text.trim();
+      request.fields['marital_status'] =
+          _maritalStatus!.toLowerCase() == 'married' ? 'Yes' : 'No';
+      request.fields['employment_status'] =
+          _employmentStatus!.toLowerCase() == 'employed' ||
+              _employmentStatus!.toLowerCase() == 'self-employed'
+          ? 'yes'
+          : 'no';
+      request.fields['fcm_token'] = _fcmToken;
+
+      if (_clntImage != null) {
+        if (kIsWeb) {
+          // Web: Use bytes for file upload
+          final bytes = await _clntImage!.readAsBytes();
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'clnt_image',
+              bytes,
+              filename: _clntImage!.name,
+            ),
+          );
+        } else {
+          // Mobile/Desktop: Use file path
+          request.files.add(
+            await http.MultipartFile.fromPath('clnt_image', _clntImage!.path),
+          );
+        }
+      }
+
+      final response = await request.send();
+      final responseBody = await http.Response.fromStream(response);
+
+      print('Registration Response: ${responseBody.body}');
+
+      if (responseBody.statusCode == 200 || responseBody.statusCode == 201) {
+        // Registration success
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Registration successful!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pushReplacementNamed(context, '/login');
+      } else {
+        // Registration failed
+        final errorData = jsonDecode(responseBody.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Registration failed: ${errorData['message'] ?? responseBody.body}',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _error =
+              'Registration failed: ${errorData['message'] ?? responseBody.body}';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Error during registration: $e';
+      });
+      print('Registration Exception: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -123,7 +332,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: const Color(0xFFFFFFFF),
           body: SingleChildScrollView(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: width * 0.05, vertical: height * 0.03),
+              padding: EdgeInsets.symmetric(
+                horizontal: width * 0.05,
+                vertical: height * 0.03,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -168,7 +380,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  // Full Name
                   TextField(
                     controller: _fullNameController,
                     decoration: InputDecoration(
@@ -201,9 +412,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  // Add this for spacing after the first field (and its error)
                   SizedBox(height: height * 0.018),
-                  // DOB
                   TextField(
                     controller: _dobController,
                     readOnly: true,
@@ -224,7 +433,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         horizontal: width * 0.03,
                         vertical: height * 0.015,
                       ),
-                      suffixIcon: Icon(Icons.calendar_today, color: Color(0xFF666666), size: scaleFont(20)),
+                      suffixIcon: Icon(
+                        Icons.calendar_today,
+                        color: Color(0xFF666666),
+                        size: scaleFont(20),
+                      ),
                     ),
                     onTap: _selectDate,
                   ),
@@ -239,8 +452,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: height * 0.018),
-                  // Gender
+                  SizedBox(height: height * 0.018),
                   DropdownButtonFormField<String>(
                     value: _gender,
                     items: ['Male', 'Female', 'Other']
@@ -276,8 +488,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: height * 0.018),
-                  // Email
+                  SizedBox(height: height * 0.018),
                   TextField(
                     controller: _emailController,
                     decoration: InputDecoration(
@@ -313,8 +524,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: height * 0.018),
-                  // Primary Phone
+                  SizedBox(height: height * 0.018),
                   TextField(
                     controller: _phoneController,
                     decoration: InputDecoration(
@@ -348,8 +558,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: height * 0.018),
-                  // Secondary Phone
+                  SizedBox(height: height * 0.018),
                   TextField(
                     controller: _altPhoneController,
                     decoration: InputDecoration(
@@ -372,7 +581,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     keyboardType: TextInputType.phone,
                   ),
-                  // Address
                   SizedBox(height: height * 0.018),
                   TextField(
                     controller: _addressController,
@@ -406,23 +614,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  // City & State
                   SizedBox(height: height * 0.018),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _cityController,
+                  // Country Dropdown
+                  _countries.isEmpty
+                      ? Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Color(0xFFD3D3D3)),
+                            borderRadius: BorderRadius.circular(height * 0.01),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: width * 0.03,
+                            vertical: height * 0.015,
+                          ),
+                          child: Text(
+                            'Loading countries...',
+                            style: TextStyle(
+                              fontSize: scaleFont(16),
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                        )
+                      : DropdownButtonFormField<String>(
+                          value: _selectedCountryId,
+                          items: _countries
+                              .map(
+                                (country) => DropdownMenuItem(
+                                  value: country['cntr_id'].toString(),
+                                  child: Text(country['cntr_name'] ?? ''),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            setState(() {
+                              _selectedCountryId = v;
+                              _states = [];
+                              _selectedStateId = null;
+                            });
+                            if (v != null) {
+                              _fetchStates(v);
+                            }
+                          },
                           decoration: InputDecoration(
-                            hintText: 'City',
-                            hintStyle: TextStyle(fontSize: scaleFont(16)),
+                            labelText: 'Country',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             filled: true,
                             fillColor: Colors.white,
@@ -432,21 +680,75 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: width * 0.03),
-                      Expanded(
-                        child: TextField(
-                          controller: _stateController,
+                  SizedBox(height: height * 0.018),
+                  // State Dropdown
+                  _selectedCountryId == null
+                      ? Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Color(0xFFD3D3D3)),
+                            borderRadius: BorderRadius.circular(height * 0.01),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: width * 0.03,
+                            vertical: height * 0.015,
+                          ),
+                          child: Text(
+                            'Select a country first',
+                            style: TextStyle(
+                              fontSize: scaleFont(16),
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                        )
+                      : _isFetchingStates || _states.isEmpty
+                      ? Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Color(0xFFD3D3D3)),
+                            borderRadius: BorderRadius.circular(height * 0.01),
+                          ),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: width * 0.03,
+                            vertical: height * 0.015,
+                          ),
+                          child: Text(
+                            _isFetchingStates
+                                ? 'Loading states...'
+                                : 'No states available',
+                            style: TextStyle(
+                              fontSize: scaleFont(16),
+                              color: Color(0xFF666666),
+                            ),
+                          ),
+                        )
+                      : DropdownButtonFormField<String>(
+                          value: _selectedStateId,
+                          items: _states
+                              .map(
+                                (state) => DropdownMenuItem(
+                                  value: state['stat_id'].toString(),
+                                  child: Text(state['stat_name'] ?? ''),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _selectedStateId = v),
                           decoration: InputDecoration(
-                            hintText: 'State/Region',
-                            hintStyle: TextStyle(fontSize: scaleFont(16)),
+                            labelText: 'State/Region',
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             filled: true,
                             fillColor: Colors.white,
@@ -456,21 +758,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  if (_cityError.isNotEmpty || _stateError.isNotEmpty)
+                  if (_stateError.isNotEmpty)
                     Padding(
                       padding: EdgeInsets.only(top: 0, bottom: height * 0.01),
                       child: Text(
-                        '${_cityError.isNotEmpty ? _cityError : ''} ${_stateError.isNotEmpty ? _stateError : ''}',
+                        _stateError,
                         style: TextStyle(
                           fontSize: scaleFont(12),
                           color: Colors.red,
                         ),
                       ),
                     ),
-                  // Zip & Nationality
                   SizedBox(height: height * 0.018),
                   Row(
                     children: [
@@ -481,12 +779,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             hintText: 'Postal/Zip Code',
                             hintStyle: TextStyle(fontSize: scaleFont(16)),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             filled: true,
                             fillColor: Colors.white,
@@ -505,12 +811,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             hintText: 'Nationality',
                             hintStyle: TextStyle(fontSize: scaleFont(16)),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(height * 0.01),
-                              borderSide: const BorderSide(color: Color(0xFFD3D3D3)),
+                              borderRadius: BorderRadius.circular(
+                                height * 0.01,
+                              ),
+                              borderSide: const BorderSide(
+                                color: Color(0xFFD3D3D3),
+                              ),
                             ),
                             filled: true,
                             fillColor: Colors.white,
@@ -534,7 +848,52 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  // TFN
+                  SizedBox(height: height * 0.018),
+                  GestureDetector(
+                    onTap: _selectImage,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Color(0xFFD3D3D3)),
+                        borderRadius: BorderRadius.circular(height * 0.01),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: width * 0.03,
+                        vertical: height * 0.015,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _clntImage == null
+                                ? 'Select Profile Image'
+                                : 'Image Selected',
+                            style: TextStyle(
+                              fontSize: scaleFont(16),
+                              color: _clntImage == null
+                                  ? Color(0xFF666666)
+                                  : Colors.black,
+                            ),
+                          ),
+                          Icon(
+                            Icons.image,
+                            color: Color(0xFF666666),
+                            size: scaleFont(20),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_imageError.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: 0, bottom: height * 0.01),
+                      child: Text(
+                        _imageError,
+                        style: TextStyle(
+                          fontSize: scaleFont(12),
+                          color: Colors.red,
+                        ),
+                      ),
+                    ),
                   SizedBox(height: height * 0.018),
                   TextField(
                     controller: _tfnController,
@@ -557,7 +916,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                   ),
-                  // Occupation
                   SizedBox(height: height * 0.018),
                   TextField(
                     controller: _occupationController,
@@ -591,7 +949,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  // Marital Status
                   SizedBox(height: height * 0.018),
                   DropdownButtonFormField<String>(
                     value: _maritalStatus,
@@ -628,13 +985,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                     ),
-                  // Employment Status
                   SizedBox(height: height * 0.018),
                   DropdownButtonFormField<String>(
                     value: _employmentStatus,
-                    items: ['Employed', 'Self-Employed', 'Unemployed', 'Retired', 'Student']
-                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                        .toList(),
+                    items:
+                        [
+                              'Employed',
+                              'Self-Employed',
+                              'Unemployed',
+                              'Retired',
+                              'Student',
+                            ]
+                            .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            )
+                            .toList(),
                     onChanged: (v) => setState(() => _employmentStatus = v),
                     decoration: InputDecoration(
                       labelText: 'Employment Status',
@@ -670,7 +1035,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     width: width * 0.85,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [Color(0xFF00A962), Color(0xFF242C57), Color(0xFF164454)],
+                        colors: [
+                          Color(0xFF00A962),
+                          Color(0xFF242C57),
+                          Color(0xFF164454),
+                        ],
                         stops: [0.40, 1, 0],
                         begin: Alignment.centerLeft,
                         end: Alignment.centerRight,

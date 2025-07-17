@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// If you want more advanced animations, consider installing Lottie or Rive.
+
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
 
@@ -7,23 +9,22 @@ class IntroScreen extends StatefulWidget {
   State<IntroScreen> createState() => _IntroScreenState();
 }
 
-class _IntroScreenState extends State<IntroScreen> {
+class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStateMixin {
   final PageController _controller = PageController();
   int _currentPage = 0;
 
+  late final AnimationController _animationController;
+
   final List<Map<String, String>> _slides = [
     {
-      'emoji': '🚀',
       'quote': 'Big dreams need smart plans.',
       'subtext': 'Connect with expert financial advisors to start building your future today.',
     },
     {
-      'emoji': '🤝',
       'quote': 'Your goals. Our guidance.',
       'subtext': 'Get personalized advice from certified professionals who care about your success.',
     },
     {
-      'emoji': '💡',
       'quote': 'We ask the right questions, so you get the right answers.',
       'subtext': 'Let our smart assistant understand your needs and connect you to the right advisor.',
     },
@@ -48,12 +49,28 @@ class _IntroScreenState extends State<IntroScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F8FF),
+      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
       body: SafeArea(
         child: Stack(
           children: [
@@ -66,64 +83,29 @@ class _IntroScreenState extends State<IntroScreen> {
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo at the top for all slides
+                    // ===== Top Logo =====
                     Padding(
-                      padding: EdgeInsets.only(top: height * 0.07, bottom: height * 0.03),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(5),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF242C57),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                                  child: Text(
-                                    'Financial',
-                                    style: TextStyle(
-                                      fontSize: scaleFont(20, context),
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: height * 0.03,
-                                    vertical: height * 0.01,
-                                  ),
-                                  margin: const EdgeInsets.only(left: 8),
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-                                      stops: [0.30, 0.70, 1],
-                                      begin: Alignment.centerLeft,
-                                      end: Alignment.centerRight,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Advisor',
-                                    style: TextStyle(
-                                      fontSize: scaleFont(20, context),
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      padding: EdgeInsets.only(top: height * 0.05, bottom: height * 0.08),
+                      child: Image.asset(
+                        'assets/Polar_logo.png',
+                        width: height * 0.16,
+                        height: height * 0.16,
+                        fit: BoxFit.contain,
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      slide['emoji'] ?? '',
-                      style: TextStyle(fontSize: scaleFont(48, context)),
+                   
+                    AnimatedBuilder(
+                      animation: _animationController,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: 1 + 0.1 * _animationController.value,
+                          child: const Icon(
+                            Icons.auto_awesome,
+                            color: Color(0xFF169060),
+                            size: 64,
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 18),
                     Padding(

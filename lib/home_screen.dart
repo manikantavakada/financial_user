@@ -11,8 +11,42 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _selectedBottomItem = 'requests';
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _rotationAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.3,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.elasticOut,
+    ));
+
+    _rotationAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
@@ -32,6 +66,26 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _onFabPressed() {
+    // Start the animation
+    _animationController.forward().then((_) {
+      // Reset animation after completion
+      _animationController.reset();
+    });
+
+    // Add your existing FAB functionality here
+    if (_selectedBottomItem == 'requests') {
+      // Your existing logic
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add new request in Advisor Request Screen!'),
+          backgroundColor: Color(0xFF169060),
+          duration: Duration(milliseconds: 1500),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -40,33 +94,51 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F8FF),
       body: _getCurrentTab(),
-      floatingActionButton: Container(
-        width: width * 0.17,
-        height: width * 0.17,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-            stops: [0.30, 0.70, 1],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          shape: BoxShape.circle,
-        ),
-        child: Container(
-          margin: const EdgeInsets.all(3),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.add, size: 30, color: Colors.black),
-            onPressed: () {
-              if (_selectedBottomItem == 'requests') {
-                
-              }
-            },
-          ),
-        ),
+      floatingActionButton: AnimatedBuilder(
+        animation: _animationController,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: Transform.rotate(
+              angle: _rotationAnimation.value * 0.5, // Half rotation for subtle effect
+              child: Container(
+                width: width * 0.17,
+                height: width * 0.17,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+                    stops: [0.30, 0.70, 1],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2 * _scaleAnimation.value),
+                      blurRadius: 15 * _scaleAnimation.value,
+                      offset: Offset(0, 5 * _scaleAnimation.value),
+                    ),
+                  ],
+                ),
+                child: Container(
+                  margin: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.add,
+                      size: 30 + (10 * (_scaleAnimation.value - 1)), // Scale icon size too
+                      color: Colors.black,
+                    ),
+                    onPressed: _onFabPressed,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
@@ -120,7 +192,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
 
   Widget _buildNavItem({
     required IconData icon,

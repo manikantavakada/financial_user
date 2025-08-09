@@ -379,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             context,
                             title: 'Pending',
                             count: pending,
-                            color: const Color(0xFF164454),
+                            color: const Color.fromARGB(255, 231, 221, 81),
                             icon: Icons.pending_actions,
                           ),
                         ],
@@ -426,7 +426,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             // Section Title
             Text(
-              'Requests Distribution',
+              'Adviser Pipeline Dashboard',
               style: TextStyle(
                 fontSize: scaleFont(16, context),
                 fontWeight: FontWeight.bold,
@@ -470,7 +470,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _buildSummaryChip(
           'Pending',
           pendingRequests,
-          const Color(0xFF164454),
+          const Color.fromARGB(255, 231, 221, 81),
           context,
           totalRequests,
         ),
@@ -670,7 +670,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               title,
               style: TextStyle(
-                color: Colors.white70,
+                color: Colors.white,
                 fontSize: scaleFont(12, context),
                 fontWeight: FontWeight.w500,
               ),

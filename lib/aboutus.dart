@@ -107,9 +107,10 @@ class AboutUsScreen extends StatelessWidget {
                   _buildGradientCard(
                     child: _buildInfoSection(
                       'Our Mission',
-                      Icons.flag,
+                      'assets/Polar_FavIcon.png',
                       'To connect users with certified financial advisors and provide a seamless, secure, and insightful experience for all your financial planning needs.',
                       width,
+                      context,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -167,7 +168,7 @@ class AboutUsScreen extends StatelessWidget {
                         ),
                         _buildContactItem(
                           'Address',
-                          '123 Financial Street, Suite 100\nNew York, NY 10001',
+                          '123 Adelaide Street, Toowong, QLD 4066, Australia',
                           Icons.location_on,
                         ),
                         _buildContactItem(
@@ -190,9 +191,9 @@ class AboutUsScreen extends StatelessWidget {
                           width,
                         ),
                         const SizedBox(height: 16),
-                        _buildInfoRow('Founded', '2020'),
-                        _buildInfoRow('Headquarters', 'New York, USA'),
-                        _buildInfoRow('Team Size', '50+ Professionals'),
+                        _buildInfoRow('Founded', '2017'),
+                        _buildInfoRow('Headquarters', 'Brisbane, Australia'),
+                        _buildInfoRow('Team Size', '8+ Professionals'),
                         _buildInfoRow('Clients Served', '10,000+'),
                         _buildInfoRow('App Version', '1.0.0'),
                       ],
@@ -285,14 +286,40 @@ class AboutUsScreen extends StatelessWidget {
 
   Widget _buildInfoSection(
     String title,
-    IconData icon,
+    String iconPath,
     String content,
     double width,
+    BuildContext context,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader(title, icon, width),
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF169060).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Image.asset(
+                iconPath,
+                width: 20,
+                height: 20,
+                color: const Color(0xFF169060), // Tint to match theme
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: width * 0.045,
+                color: const Color(0xFF242C57),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 12),
         Text(
           content,
@@ -433,7 +460,7 @@ class AboutUsScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 60, // Fixed width to control size
+        width: 60,
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
           color: const Color(0xFF169060).withOpacity(0.1),
@@ -445,13 +472,13 @@ class AboutUsScreen extends StatelessWidget {
             Icon(
               icon,
               color: const Color(0xFF169060),
-              size: 20, // Reduced icon size
+              size: 20,
             ),
             const SizedBox(height: 4),
             Text(
               name,
               style: const TextStyle(
-                fontSize: 10, // Reduced font size
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF242C57),
               ),

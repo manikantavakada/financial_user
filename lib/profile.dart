@@ -83,11 +83,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Container(
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [
-                Color(0xFF169060),
-                Color(0xFF175B58),
-                Color(0xFF19214F),
-              ],
+              colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
               stops: [0.3, 0.7, 1],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -147,7 +143,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         backgroundColor: Colors.transparent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                          side: BorderSide(
+                            color: Colors.white.withOpacity(0.3),
+                          ),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -172,16 +170,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.clear();
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/login',
-        (route) => false,
-      );
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
 
+  String _maskTFN(String? tfn) {
+    if (tfn == null || tfn.isEmpty || tfn.length < 4) {
+      return 'Not provided';
+    }
+    // Assuming TFN is at least 9 characters (e.g., Australian TFN format)
+    return '${tfn.substring(0, 2)}*****${tfn.substring(tfn.length - 2)}';
+  }
+
   double scaleFont(double size) {
-    return (size * MediaQuery.of(context).size.width / 375).clamp(size * 0.8, size * 1.2);
+    return (size * MediaQuery.of(context).size.width / 375).clamp(
+      size * 0.8,
+      size * 1.2,
+    );
   }
 
   @override
@@ -194,8 +199,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: isLoading
           ? _buildShimmerLoading(width, height)
           : errorMessage != null
-              ? _buildErrorWidget()
-              : _buildProfileContent(width, height),
+          ? _buildErrorWidget()
+          : _buildProfileContent(width, height),
     );
   }
 
@@ -259,8 +264,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 10),
                       // Client ID Badge Placeholder
                       Container(
-                        width: 100, // Approximate width of "ID: XXXX" with padding
-                        height: scaleFont(12) + 12, // Text height + vertical padding
+                        width:
+                            100, // Approximate width of "ID: XXXX" with padding
+                        height:
+                            scaleFont(12) +
+                            12, // Text height + vertical padding
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(20),
@@ -269,7 +277,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 10),
                       // Logout Button Placeholder
                       Container(
-                        width: 110, // Approximate width of icon + "Log Out" with padding
+                        width:
+                            110, // Approximate width of icon + "Log Out" with padding
                         height: scaleFont(12) + 12,
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -287,20 +296,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
-              children: List.generate(4, (index) => Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: const Color(0xFF169060).withOpacity(0.5),
-                  child: Container(
-                    height: 200,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+              children: List.generate(
+                4,
+                (index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Shimmer.fromColors(
+                    baseColor: Colors.grey[300]!,
+                    highlightColor: const Color(0xFF169060).withOpacity(0.5),
+                    child: Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                     ),
                   ),
                 ),
-              )),
+              ),
             ),
           ),
         ],
@@ -579,7 +591,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'Employment Status',
                   clientData?['clnt_employment_status'] ?? 'Not provided',
                 ),
-                _buildInfoRow('TFN', clientData?['clnt_tfn'] ?? 'Not provided'),
+                _buildInfoRow('TFN', _maskTFN(clientData?['clnt_tfn'])),
               ]),
               const SizedBox(height: 20),
               _buildInfoCard(
@@ -719,7 +731,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _formatGender(String? gender) {
     if (gender == null) return 'Not provided';
-    return gender.toLowerCase() == 'male' ? 'Male' : gender.toLowerCase() == 'female' ? 'Female' : gender;
+    return gender.toLowerCase() == 'male'
+        ? 'Male'
+        : gender.toLowerCase() == 'female'
+        ? 'Female'
+        : gender;
   }
 
   String _formatStatus(String? status) {

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'bg.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -19,10 +20,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _altPhoneController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _cityController = TextEditingController();
+  final _address1Controller = TextEditingController();
+  final _address2Controller = TextEditingController();
+  final _citySuburbController = TextEditingController();
   final _zipController = TextEditingController();
-  
   final _tfnController = TextEditingController();
   final _occupationController = TextEditingController();
   String? _maritalStatus;
@@ -173,11 +174,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ? 'Valid email required'
           : '';
       _phoneError = _phoneController.text.trim().isEmpty ? 'Primary phone required' : '';
-      _addressError = _addressController.text.trim().isEmpty ? 'Address required' : '';
-      _cityError = _cityController.text.trim().isEmpty ? 'City required' : '';
+      _addressError = _address1Controller.text.trim().isEmpty ? 'Address 1st Line required' : '';
+      _cityError = _citySuburbController.text.trim().isEmpty ? 'City/Suburb required' : '';
       _stateError = _selectedStateId == null ? 'State required' : '';
       _zipError = _zipController.text.trim().isEmpty ? 'Zip required' : '';
-      
       _occupationError = _occupationController.text.trim().isEmpty ? 'Occupation required' : '';
       _maritalStatusError = _maritalStatus == null ? 'Marital status required' : '';
       _employmentStatusError = _employmentStatus == null ? 'Employment status required' : '';
@@ -222,12 +222,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
       request.fields['dob'] = _dobController.text.trim();
       request.fields['gender'] = _gender!.toLowerCase();
       request.fields['alt_phone'] = _altPhoneController.text.trim();
-      request.fields['address'] = _addressController.text.trim();
-      request.fields['city'] = _cityController.text.trim();
+      request.fields['address'] = _address2Controller.text.trim().isEmpty
+          ? _address1Controller.text.trim()
+          : '${_address1Controller.text.trim()}, ${_address2Controller.text.trim()}';
+      request.fields['city'] = _citySuburbController.text.trim();
       request.fields['state'] = _selectedStateId!;
       request.fields['country'] = _selectedCountryId!;
       request.fields['zip'] = _zipController.text.trim();
-      
       request.fields['tfn'] = _tfnController.text.trim();
       request.fields['occupation'] = _occupationController.text.trim();
       request.fields['marital_status'] =
@@ -297,11 +298,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
 
-    return Stack(
-      children: [
-        Scaffold(
-          backgroundColor: Colors.white,
-          body: Column(
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // Apply common background
+          const Bg(),
+          Column(
             children: [
               // Header with Back Button
               Container(
@@ -424,14 +427,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           keyboardType: TextInputType.phone,
                         ),
                         _buildTextField(
-                          controller: _addressController,
-                          hint: 'Full Address',
+                          controller: _address1Controller,
+                          hint: 'Address 1st Line',
                           error: _addressError,
                           icon: Icons.home_outlined,
                         ),
                         _buildTextField(
-                          controller: _cityController,
-                          hint: 'City',
+                          controller: _address2Controller,
+                          hint: 'Address 2nd Line (Optional)',
+                          icon: Icons.home_outlined,
+                        ),
+                        _buildTextField(
+                          controller: _citySuburbController,
+                          hint: 'City/Suburb',
                           error: _cityError,
                           icon: Icons.location_city_outlined,
                         ),
@@ -447,7 +455,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 icon: Icons.local_post_office_outlined,
                               ),
                             ),
-                            
                           ],
                         ),
                         _buildImagePicker(),
@@ -471,7 +478,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                         _buildDropdown(
                           value: _employmentStatus,
-                          items: ['Employed', 'Self-Employed', 'Unemployed', 'Retired', 'Student'],
+                          items: ['Employed', 'Self-Employed', 'Transition to Retirement Age', 'Retired', 'Student'],
                           hint: 'Employment Status',
                           error: _employmentStatusError,
                           onChanged: (v) => setState(() => _employmentStatus = v),
@@ -485,29 +492,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ],
           ),
-        ),
-        if (_isLoading)
-          Container(
-            color: Colors.black54,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(color: Color(0xFF169060)),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Registering...',
-                    style: TextStyle(
-                      fontSize: scaleFont(16),
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: Color(0xFF169060)),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Registering...',
+                      style: TextStyle(
+                        fontSize: scaleFont(16),
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700, // Thicker font
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 

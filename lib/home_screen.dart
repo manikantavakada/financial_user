@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'aboutus.dart';
+import 'add_advisor_request_screen.dart';
 import 'advisor_request.dart';
 import 'dashboard.dart';
 import 'profile.dart';
@@ -132,7 +133,15 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                       size: 30 + (10 * (_scaleAnimation.value - 1)), // Scale icon size too
                       color: Colors.black,
                     ),
-                    onPressed: _onFabPressed,
+                    onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddAdvisorRequestScreen(),
+                      ),
+                    );
+                    
+                  },
                   ),
                 ),
               ),

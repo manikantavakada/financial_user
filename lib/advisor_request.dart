@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
 
+import 'add_advisor_request_screen.dart';
+
 class AdvisorRequestsScreen extends StatefulWidget {
   const AdvisorRequestsScreen({super.key});
 
@@ -162,6 +164,12 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
               'additional_needs': List<Map<String, dynamic>>.from(
                 (request['additional_needs'] ?? []).map(
                   (a) => Map<String, dynamic>.from(a),
+                ),
+              ),
+              // inside your mapping for processedRequest in _fetchRequests()
+              'solutions': List<Map<String, dynamic>>.from(
+                (request['solutions'] ?? []).map(
+                  (s) => Map<String, dynamic>.from(s),
                 ),
               ),
             };
@@ -628,7 +636,6 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
   Widget _buildShimmerLoading(double width, double height) {
     return Column(
       children: [
-        
         // Card Shimmer
         Expanded(
           child: ListView.builder(
@@ -756,7 +763,17 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
                 right: 0,
                 child: IconButton(
                   icon: const Icon(Icons.add, size: 28, color: Colors.white),
-                  onPressed: _showAddRequestBottomSheet,
+                  onPressed: () async {
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AddAdvisorRequestScreen(),
+                      ),
+                    );
+                    if (result == true) {
+                      _refreshRequests(); // Refresh list if submission was successful
+                    }
+                  },
                 ),
               ),
             ],

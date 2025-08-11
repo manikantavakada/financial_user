@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:flutter_html/flutter_html.dart';
+import 'package:shimmer/shimmer.dart'; // <-- Add this in pubspec.yaml
 
 class AdvisorRequestDetailScreen extends StatefulWidget {
   const AdvisorRequestDetailScreen({super.key});
@@ -12,6 +14,10 @@ class AdvisorRequestDetailScreen extends StatefulWidget {
 
 class _AdvisorRequestDetailScreenState
     extends State<AdvisorRequestDetailScreen> {
+  Map<String, dynamic>? req;
+  bool _loading = true;
+  bool _error = false;
+
   Map<int, String> _questionnaireAnswers = {};
   Map<int, String> _goalAnswers = {};
   Map<int, String> _additionalNeedAnswers = {};
@@ -24,12 +30,63 @@ class _AdvisorRequestDetailScreenState
   @override
   void initState() {
     super.initState();
+    Future.microtask(() {
+      final args =
+          ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>;
+      final int avrrId = args['avrr_id'];
+      _fetchRequestDetails(avrrId);
+    });
+  }
+
+  Future<void> _fetchRequestDetails(int avrrId) async {
+    setState(() {
+      _loading = true;
+      _error = false;
+    });
+    try {
+      final res = await http.get(
+        Uri.parse(
+          'https://ss.singledeck.in/api/v1/adviser/client-requests/?avrr_id=$avrrId',
+        ),
+      );
+      if (res.statusCode == 200) {
+        final data = json.decode(res.body);
+        if (data['status'] == 'success' &&
+            data['data'] != null &&
+            data['data'].isNotEmpty) {
+          setState(() {
+            req = Map<String, dynamic>.from(data['data'][0]);
+            _loading = false;
+          });
+        } else {
+          setState(() {
+            _error = true;
+            _loading = false;
+          });
+        }
+      } else {
+        setState(() {
+          _error = true;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error fetching details: $e");
+      setState(() {
+        _error = true;
+        _loading = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _textControllers.values.forEach((controller) => controller.dispose());
     super.dispose();
+  }
+
+  double scaleFont(double size, BuildContext context) {
+    return size * MediaQuery.of(context).size.width / 375;
   }
 
   Future<bool> _submitQuestionnaireResponses(
@@ -89,14 +146,7 @@ class _AdvisorRequestDetailScreenState
 
   String _getExistingAnswer(List<dynamic> responses, String type) {
     if (responses.isNotEmpty && responses.last is Map) {
-      final response =
-          responses.last
-              as Map<
-                String,
-                dynamic
-              >; // Changed from responses[0] to responses.last
-
-      // Handle different field names based on type
+      final response = responses.last as Map<String, dynamic>;
       switch (type) {
         case 'questionnaire':
           return response['adqr_answer']?.toString() ?? '';
@@ -115,21 +165,84 @@ class _AdvisorRequestDetailScreenState
     return responses.isNotEmpty;
   }
 
+  /// --- Shimmer Loader UI ---
+  Widget _buildShimmerLoader(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    return Column(
+      children: [
+        // Top bar shimmering placeholder
+        Container(
+          width: double.infinity,
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + 16,
+            bottom: 20,
+          ),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
+              stops: [0.30, 0.70, 1],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(22),
+              bottomRight: Radius.circular(22),
+            ),
+          ),
+          child: Stack(
+            children: [
+              Positioned(
+                left: 8,
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ),
+              Center(
+                child: Text(
+                  'Request Details',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: scaleFont(22, context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Shimmer.fromColors(
+              baseColor: Colors.grey[300]!,
+              highlightColor: Colors.grey[100]!,
+              child: ListView.builder(
+                itemCount: 6,
+                itemBuilder: (_, __) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// --- Main build ---
   @override
   Widget build(BuildContext context) {
-    final Map<String, dynamic> req =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
-        {
-          'avrr_title': 'Retirement Planning',
-          'avrr_status': 'PEND',
-          'avrr_rdate': '2025-07-01',
-          'avrr_id': 'AR-001',
-          'avrr_desc': 'Sample description',
-          'avrr_comment': null,
-          'questionnaire': [],
-          'goals': [],
-          'additional_needs': [],
-        };
+    if (_loading) return _buildLoadingScreen();
+    if (_error || req == null) return _buildErrorScreen();
 
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
@@ -138,60 +251,229 @@ class _AdvisorRequestDetailScreenState
       length: 4,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F8FF),
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF1E3A5F),
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          title: Text(
-            'Request Details',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: width * 0.055,
+        appBar: PreferredSize(
+          preferredSize: Size.fromHeight(110),
+          child: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            flexibleSpace: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color(0xFF169060),
+                    Color(0xFF175B58),
+                    Color(0xFF19214F),
+                  ],
+                  stops: [0.3, 0.7, 1],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(22),
+                  bottomRight: Radius.circular(22),
+                ),
+              ),
             ),
-          ),
-          centerTitle: true,
-          bottom: TabBar(
-            labelColor: const Color(0xFF169060),
-            unselectedLabelColor: Colors.white,
-            indicatorColor: const Color(0xFF169060),
-            labelStyle: TextStyle(
-              fontSize: width * 0.032,
-              fontWeight: FontWeight.bold,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            unselectedLabelStyle: TextStyle(
-              fontSize: width * 0.032,
-              fontWeight: FontWeight.normal,
+            centerTitle: true,
+            title: Text(
+              'Request Details',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: width * 0.055,
+              ),
             ),
-            isScrollable: true,
-            tabs: const [
-              Tab(text: 'Details'),
-              Tab(text: 'Goals'),
-              Tab(text: 'Risk Profile'),
-              Tab(text: 'Additional Needs'),
-            ],
+            bottom: TabBar(
+              isScrollable: true,
+              labelPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+              ), // tighter spacing
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.white60,
+              indicatorColor: Colors.white,
+              labelStyle: TextStyle(
+                fontSize:
+                    MediaQuery.of(context).size.width * 0.034, // bigger text
+                fontWeight: FontWeight.bold,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontSize: MediaQuery.of(context).size.width * 0.034,
+                fontWeight: FontWeight.normal,
+              ),
+              tabs: const [
+                Tab(text: 'Details'),
+                Tab(text: 'Goals'),
+                Tab(text: 'Risk Profile'),
+                Tab(text: 'Additional Needs'),
+              ],
+            ),
           ),
         ),
         body: TabBarView(
           children: [
-            _buildDetailsTab(req, width, height),
-            _buildGoalsTab(req, width),
-            _buildQuestionnaireTab(req, width),
-            _buildAdditionalNeedsTab(req, width),
+            _buildDetailsTab(req!, width, height),
+            _buildGoalsTab(req!, width),
+            _buildQuestionnaireTab(req!, width),
+            _buildAdditionalNeedsTab(req!, width),
           ],
         ),
       ),
     );
   }
 
+  // Loading screen with shimmer effect and themed top bar
+  Widget _buildLoadingScreen() {
+    final width = MediaQuery.of(context).size.width;
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F8FF),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 16,
+              bottom: 20,
+            ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF169060),
+                  Color(0xFF175B58),
+                  Color(0xFF19214F),
+                ],
+                stops: [0.3, 0.7, 1],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(22),
+                bottomRight: Radius.circular(22),
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    'Request Details',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: scaleFont(22, context),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Shimmer.fromColors(
+                baseColor: Colors.grey[300]!,
+                highlightColor: Colors.grey[100]!,
+                child: ListView.builder(
+                  itemCount: 6,
+                  itemBuilder: (_, __) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Container(
+                      height: 80,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Error screen with themed top bar
+  Widget _buildErrorScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F8FF),
+      body: Column(
+        children: [
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 16,
+              bottom: 20,
+            ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFF169060),
+                  Color(0xFF175B58),
+                  Color(0xFF19214F),
+                ],
+                stops: [0.3, 0.7, 1],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(22),
+                bottomRight: Radius.circular(22),
+              ),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 8,
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    'Request Details',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: scaleFont(22, context),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Expanded(
+            child: Center(child: Text('Failed to load request details')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ⬇️ KEEP all your original _buildDetailsTab, _buildGoalsTab, etc. methods here unchanged ⬇️
+
   Widget _buildDetailsTab(
     Map<String, dynamic> req,
     double width,
     double height,
   ) {
+    // ✅ Define visibleSolutions at the start
+    final List<dynamic> visibleSolutions = (req['solutions'] ?? [])
+        .where((s) => s['adrs_userdisplay_status'] == 'Y')
+        .toList();
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(width * 0.06),
       child: Column(
@@ -308,7 +590,10 @@ class _AdvisorRequestDetailScreenState
               ),
             ),
           ),
+
           const SizedBox(height: 24),
+
+          // SHOW waiting message only if Pending
           if (req['avrr_status'] == 'PEND')
             Center(
               child: Text(
@@ -320,6 +605,41 @@ class _AdvisorRequestDetailScreenState
                 ),
               ),
             ),
+
+          // SHOW solutions only if Approved and found displayable ones
+          if (req['avrr_status'] == 'APVD' && visibleSolutions.isNotEmpty) ...[
+            Text(
+              'Advisor Solutions:',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: width * 0.045,
+                color: const Color(0xFF1E3A5F),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            ...visibleSolutions.map((solution) {
+              return Card(
+                margin: EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Html(
+                    data: solution['adrs_response'] ?? '',
+                    style: {
+                      "body": Style(
+                        fontSize: FontSize(width * 0.038),
+                        color: const Color(0xFF333333),
+                      ),
+                    },
+                  ),
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );

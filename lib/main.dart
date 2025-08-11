@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'aboutus.dart';
+import 'add_advisor_request_screen.dart';
 import 'advisor_request.dart';
 import 'advisor_request_details.dart';
 import 'edit_profile.dart';
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
         '/about': (context) => AboutUsScreen(),
         '/advisor_request_detail': (context) => AdvisorRequestDetailScreen(),
         '/edit_profile': (context) => const EditProfileScreen(),
+        '/add_advisor_request': (context) => const AddAdvisorRequestScreen(),
       },
     );
   }

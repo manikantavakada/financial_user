@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:financial_user/color_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -8,7 +9,6 @@ import 'package:encrypt/encrypt.dart' show RSAKeyParser;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bg.dart';
-
 
 // RSA encryption function (unchanged)
 const String serverPublicKeyPem = """
@@ -33,7 +33,7 @@ class LoginScreen extends StatefulWidget {
   _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = false;
@@ -44,8 +44,54 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPassword = false;
   String _phoneNumber = '';
 
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      duration: Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Interval(0.3, 1.0, curve: Curves.easeOutQuart),
+    ));
+
+    _slideAnimation = Tween<Offset>(
+      begin: Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Interval(0.3, 1.0, curve: Curves.easeOutQuart),
+    ));
+
+    _animationController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleWidth(double width) {
+    return width * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleHeight(double height) {
+    return height * MediaQuery.of(context).size.height / 812;
   }
 
   bool validateForm() {
@@ -54,9 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _emailError = _phoneNumber.isEmpty && _emailController.text.trim().isEmpty
           ? 'Phone number is required'
           : '';
-      // if (_phoneNumber.isNotEmpty ) {
-      //   _emailError = 'Phone number is required';
-      // }
+      
       final password = _passwordController.text.trim();
       if (password.isEmpty) {
         _passwordError = 'Password is required';
@@ -83,7 +127,9 @@ class _LoginScreenState extends State<LoginScreen> {
       serverPublicKeyPem,
     );
 
-    final url = Uri.parse('https://ss.singledeck.in/api/v1/clients/client-login/');
+    final url = Uri.parse(
+      'https://ds.singledeck.in/api/v1/clients/client-login/',
+    );
     const String fcmToken = 'staticfcm1234567890';
 
     final body = {
@@ -100,8 +146,6 @@ class _LoginScreenState extends State<LoginScreen> {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(body),
       );
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -116,9 +160,9 @@ class _LoginScreenState extends State<LoginScreen> {
         prefs.setInt('client_id', json['user']?['clnt_id'] ?? 0);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Login successful!'),
-            backgroundColor: Colors.green,
+            backgroundColor: Color(0xFF4CAF50),
             duration: Duration(seconds: 2),
           ),
         );
@@ -158,192 +202,383 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
-
-    // Gradient for input field borders
-    const gradient = LinearGradient(
-      colors: [
-        Color(0xFF169060),
-        Color(0xFF175B58),
-        Color(0xFF19214F),
-      ],
-      stops: [0.30, 0.70, 1],
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-    );
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Apply common background
-          const Bg(),
-          Center(
+          // Curved Header with Gradient
+          ClipPath(
+            clipper: HeaderClipper(),
+            child: Container(
+              height: size.height * 0.45,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [primaryColor, secondaryColor],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
+          ),
+
+          // Content
+          SafeArea(
             child: SingleChildScrollView(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: width * 0.05),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(
-                        top: height * 0.02,
-                        bottom: height * 0.02,
-                      ),
-                      child: Image.asset(
-                        'assets/Polar_logo.png',
-                        width: height * 0.18,
-                        height: height * 0.18,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    Text(
-                      'Log In',
-                      style: TextStyle(
-                        fontSize: scaleFont(28),
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1E3A5F),
-                      ),
-                    ),
-                    SizedBox(height: height * 0.01),
-                    if (_error.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(bottom: height * 0.02),
-                        child: Text(
-                          _error,
-                          style: TextStyle(
-                            fontSize: scaleFont(14),
-                            color: Colors.red,
+              child: Column(
+                children: [
+                  // Header Content
+                  Container(
+                    height: size.height * 0.3,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Logo with Animation
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: Container(
+                            padding: EdgeInsets.all(scaleWidth(20)),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  spreadRadius: 5,
+                                ),
+                              ],
+                            ),
+                            child: Image.asset(
+                              'assets/Polar_FavIcon.png',
+                              width: scaleWidth(60),
+                              height: scaleWidth(60),
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
-                      ),
-                    // Phone number field with gradient border
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: gradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: IntlPhoneField(
-                          decoration: InputDecoration(
-                            hintText: 'Phone number',
-                            hintStyle: TextStyle(fontSize: scaleFont(16)),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: BorderSide.none,
-                            ),
-                            errorBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Colors.red),
-                            ),
-                            focusedErrorBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              borderSide: const BorderSide(color: Colors.red),
-                            ),
-                            counterText: '', // Hide character counter
-                          ),
-                          initialCountryCode: 'AU',
-                          showCountryFlag: true, // Show country flag
-                          showDropdownIcon: false, // Hide dropdown
-                          keyboardType: TextInputType.number,
-                          
-                          onChanged: (phone) {
-                            setState(() {
-                              _phoneNumber = phone.number; // Capture raw number
-                            });
-                          },
-                          validator: (phone) {
-                            if (phone == null || phone.number.isEmpty) {
-                              return 'Phone number is required';
-                            }
-                            // if (!RegExp(r'^04\d{8}$').hasMatch(phone.number)) {
-                            //   return 'Australian numbers must be 04 followed by 8 digits';
-                            // }
-                            return null;
-                          },
-                        ),
-                      ),
-                    ),
-                    if (_emailError.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(top: 0, bottom: height * 0.02),
-                        child: Text(
-                          _emailError,
-                          style: TextStyle(
-                            fontSize: scaleFont(12),
-                            color: Colors.red,
-                          ),
-                        ),
-                      ),
-                    SizedBox(height: height * 0.02), // Margin between fields
-                    // Password field with gradient border
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: gradient,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Container(
-                        margin: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Stack(
-                          children: [
-                            TextField(
-                              controller: _passwordController,
-                              decoration: InputDecoration(
-                                hintText: 'Password',
-                                hintStyle: TextStyle(fontSize: scaleFont(16)),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide.none,
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide.none,
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: BorderSide.none,
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Colors.red),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                  borderSide: const BorderSide(color: Colors.red),
+                        SizedBox(height: scaleHeight(20)),
+                        
+                        // Welcome Text with Animation
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: Column(
+                            children: [
+                              Text(
+                                'Welcome Back!',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: scaleFont(32),
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
-                              obscureText: !_showPassword,
-                              keyboardType: TextInputType.number,
+                              SizedBox(height: scaleHeight(8)),
+                              Text(
+                                'Sign in to your account',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: scaleFont(16),
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Login Form Card with Animation
+                  SlideTransition(
+                    position: _slideAnimation,
+                    child: FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: Container(
+                        margin: EdgeInsets.symmetric(horizontal: scaleWidth(24)),
+                        padding: EdgeInsets.all(scaleWidth(32)),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                              offset: Offset(0, 10),
                             ),
-                            Positioned(
-                              right: 10,
-                              top: height * 0.02,
-                              child: GestureDetector(
-                                onTap: () =>
-                                    setState(() => _showPassword = !_showPassword),
-                                child: Icon(
-                                  _showPassword
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
-                                  size: scaleFont(20),
-                                  color: const Color(0xFF666666),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_error.isNotEmpty) _buildErrorCard(),
+
+                            // Phone Field
+                            Text(
+                              'Phone Number',
+                              style: TextStyle(
+                                fontSize: scaleFont(16),
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: scaleHeight(8)),
+                            
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: IntlPhoneField(
+                                decoration: InputDecoration(
+                                  hintText: 'Enter phone number',
+                                  hintStyle: TextStyle(
+                                    fontSize: scaleFont(14),
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[50],
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(color: primaryColor, width: 2),
+                                  ),
+                                  counterText: '',
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: scaleWidth(16),
+                                    vertical: scaleHeight(16),
+                                  ),
+                                ),
+                                initialCountryCode: 'AU',
+                                showCountryFlag: true,
+                                showDropdownIcon: false,
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(
+                                  fontSize: scaleFont(14),
+                                  color: Colors.black87,
+                                ),
+                                onChanged: (phone) {
+                                  setState(() {
+                                    _phoneNumber = phone.number;
+                                  });
+                                },
+                              ),
+                            ),
+
+                            if (_emailError.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: scaleHeight(8),
+                                  left: scaleWidth(4),
+                                ),
+                                child: Text(
+                                  _emailError,
+                                  style: TextStyle(
+                                    fontSize: scaleFont(12),
+                                    color: Colors.red[600],
+                                  ),
+                                ),
+                              ),
+
+                            SizedBox(height: scaleHeight(24)),
+
+                            // Password Field
+                            Text(
+                              'Password',
+                              style: TextStyle(
+                                fontSize: scaleFont(16),
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            SizedBox(height: scaleHeight(8)),
+
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.1),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: TextField(
+                                controller: _passwordController,
+                                obscureText: !_showPassword,
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(
+                                  fontSize: scaleFont(14),
+                                  color: Colors.black87,
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Enter your password',
+                                  hintStyle: TextStyle(
+                                    fontSize: scaleFont(14),
+                                    color: Colors.grey.shade400,
+                                  ),
+                                  filled: true,
+                                  fillColor: Colors.grey[50],
+                                  suffixIcon: GestureDetector(
+                                    onTap: () => setState(
+                                      () => _showPassword = !_showPassword,
+                                    ),
+                                    child: Container(
+                                      margin: EdgeInsets.all(scaleWidth(8)),
+                                      padding: EdgeInsets.all(scaleWidth(8)),
+                                      decoration: BoxDecoration(
+                                        color: primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        _showPassword
+                                            ? Icons.visibility
+                                            : Icons.visibility_off,
+                                        size: scaleFont(18),
+                                        color: primaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                    borderSide: BorderSide(color: primaryColor, width: 2),
+                                  ),
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: scaleWidth(16),
+                                    vertical: scaleHeight(16),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            if (_passwordError.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: scaleHeight(8),
+                                  left: scaleWidth(4),
+                                ),
+                                child: Text(
+                                  _passwordError,
+                                  style: TextStyle(
+                                    fontSize: scaleFont(12),
+                                    color: Colors.red[600],
+                                  ),
+                                ),
+                              ),
+
+                            SizedBox(height: scaleHeight(20)),
+
+                            // Remember me and Forgot password
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    Transform.scale(
+                                      scale: 0.8,
+                                      child: Checkbox(
+                                        value: _rememberMe,
+                                        onChanged: (value) =>
+                                            setState(() => _rememberMe = value!),
+                                        activeColor: primaryColor,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      'Remember me',
+                                      style: TextStyle(
+                                        fontSize: scaleFont(14),
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                GestureDetector(
+                                  onTap: () {},
+                                  child: Text(
+                                    'Forgot password?',
+                                    style: TextStyle(
+                                      fontSize: scaleFont(14),
+                                      color: primaryColor,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            SizedBox(height: scaleHeight(32)),
+
+                            // Login Button
+                            Container(
+                              width: double.infinity,
+                              height: scaleHeight(56),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [primaryColor, secondaryColor],
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                ),
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: primaryColor.withOpacity(0.4),
+                                    blurRadius: 15,
+                                    offset: Offset(0, 8),
+                                  ),
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: _isLoading ? null : handleLogin,
+                                  child: Container(
+                                    alignment: Alignment.center,
+                                    child: _isLoading
+                                        ? SizedBox(
+                                            width: scaleWidth(24),
+                                            height: scaleWidth(24),
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 3,
+                                            ),
+                                          )
+                                        : Text(
+                                            'Sign In',
+                                            style: TextStyle(
+                                              fontSize: scaleFont(18),
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 1,
+                                            ),
+                                          ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -351,137 +586,108 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    if (_passwordError.isNotEmpty)
-                      Padding(
-                        padding: EdgeInsets.only(top: 0, bottom: height * 0.02),
-                        child: Text(
-                          _passwordError,
-                          style: TextStyle(
-                            fontSize: scaleFont(12),
-                            color: Colors.red,
-                          ),
-                        ),
-                      ),
-                    Padding(
-                      padding: EdgeInsets.only(bottom: height * 0.03),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _rememberMe,
-                                onChanged: (value) =>
-                                    setState(() => _rememberMe = value!),
-                              ),
-                              Text(
-                                'Remember me',
-                                style: TextStyle(
-                                  fontSize: scaleFont(14),
-                                  color: const Color(0xFF666666),
-                                ),
-                              ),
-                            ],
-                          ),
-                          GestureDetector(
-                            onTap: () {},
-                            child: Text(
-                              'Forgot password?',
-                              style: TextStyle(
-                                fontSize: scaleFont(14),
-                                color: const Color(0xFF666666),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: width * 0.85,
-                      decoration: BoxDecoration(
-                        gradient: gradient,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            offset: Offset(0, 4),
-                            blurRadius: 4,
-                          ),
-                        ],
-                      ),
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : handleLogin,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: EdgeInsets.symmetric(
-                            vertical: height * 0.025,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          _isLoading ? 'Logging in...' : 'Log In',
-                          style: TextStyle(
-                            fontSize: scaleFont(16),
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: height * 0.02),
-                    Row(
+                  ),
+
+                  SizedBox(height: scaleHeight(24)),
+
+                  // Register link with Animation
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           "Don't have an account? ",
                           style: TextStyle(
                             fontSize: scaleFont(14),
-                            color: const Color(0xFF666666),
+                            color: Colors.grey[600],
                           ),
                         ),
                         GestureDetector(
                           onTap: () =>
                               Navigator.pushNamed(context, '/register'),
                           child: Text(
-                            'Register now!',
+                            'Create Account',
                             style: TextStyle(
-                              fontSize: scaleFont(15),
-                              color: const Color(0xFF00A962),
+                              fontSize: scaleFont(14),
+                              color: primaryColor,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  SizedBox(height: scaleHeight(40)),
+                ],
               ),
             ),
           ),
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: Color(0xFF169060)),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Loading...',
-                      style: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
+
+  Widget _buildErrorCard() {
+    return Container(
+      margin: EdgeInsets.only(bottom: scaleHeight(20)),
+      padding: EdgeInsets.all(scaleWidth(16)),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red[600], size: scaleFont(20)),
+          SizedBox(width: scaleWidth(12)),
+          Expanded(
+            child: Text(
+              _error,
+              style: TextStyle(
+                fontSize: scaleFont(14),
+                color: Colors.red[700],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Custom clipper for curved header
+class HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    path.lineTo(0, size.height - 80);
+    
+    // Create a smooth curve
+    var firstControlPoint = Offset(size.width / 4, size.height);
+    var firstEndPoint = Offset(size.width / 2, size.height - 30);
+    path.quadraticBezierTo(
+      firstControlPoint.dx,
+      firstControlPoint.dy,
+      firstEndPoint.dx,
+      firstEndPoint.dy,
+    );
+    
+    var secondControlPoint = Offset(size.width * 3 / 4, size.height - 80);
+    var secondEndPoint = Offset(size.width, size.height - 40);
+    path.quadraticBezierTo(
+      secondControlPoint.dx,
+      secondControlPoint.dy,
+      secondEndPoint.dx,
+      secondEndPoint.dy,
+    );
+    
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

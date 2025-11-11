@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'bg.dart';
+import 'color_constants.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -55,10 +56,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
   String _employmentStatusError = '';
   String _imageError = '';
 
-  final String baseUrl = 'https://ss.singledeck.in/api/v1/';
+  final String baseUrl = 'https://ds.singledeck.in/api/v1/';
 
+  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleWidth(double width) {
+    return width * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleHeight(double height) {
+    return height * MediaQuery.of(context).size.height / 812;
   }
 
   @override
@@ -76,7 +86,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final List<dynamic> data = responseData['data'] ?? [];
         setState(() {
-          _countries = data.map((item) => Map<String, dynamic>.from(item)).toList();
+          _countries = data
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
         });
       } else {
         setState(() {
@@ -104,7 +116,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final List<dynamic> data = responseData['data'] ?? [];
         setState(() {
-          _states = data.map((item) => Map<String, dynamic>.from(item)).toList();
+          _states = data
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
           _isFetchingStates = false;
         });
       } else {
@@ -141,14 +155,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF169060),
+            colorScheme: ColorScheme.light(
+              primary: primaryColor,
               onPrimary: Colors.white,
-              onSurface: Color(0xFF1E3A5F),
+              onSurface: Colors.black87,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF169060),
+                foregroundColor: primaryColor,
               ),
             ),
           ),
@@ -166,21 +180,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool validateForm() {
     bool isValid = true;
     setState(() {
-      _fullNameError = _fullNameController.text.trim().isEmpty ? 'Full name required' : '';
-      _dobError = _dobController.text.trim().isEmpty ? 'Date of birth required' : '';
+      _fullNameError = _fullNameController.text.trim().isEmpty
+          ? 'Full name required'
+          : '';
+      _dobError = _dobController.text.trim().isEmpty
+          ? 'Date of birth required'
+          : '';
       _genderError = _gender == null ? 'Gender required' : '';
       final emailRegex = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
-      _emailError = _emailController.text.trim().isEmpty || !emailRegex.hasMatch(_emailController.text)
+      _emailError =
+          _emailController.text.trim().isEmpty ||
+              !emailRegex.hasMatch(_emailController.text)
           ? 'Valid email required'
           : '';
-      _phoneError = _phoneController.text.trim().isEmpty ? 'Primary phone required' : '';
-      _addressError = _address1Controller.text.trim().isEmpty ? 'Address 1st Line required' : '';
-      _cityError = _citySuburbController.text.trim().isEmpty ? 'City/Suburb required' : '';
+      _phoneError = _phoneController.text.trim().isEmpty
+          ? 'Primary phone required'
+          : '';
+      _addressError = _address1Controller.text.trim().isEmpty
+          ? 'Address 1st Line required'
+          : '';
+      _cityError = _citySuburbController.text.trim().isEmpty
+          ? 'City/Suburb required'
+          : '';
       _stateError = _selectedStateId == null ? 'State required' : '';
       _zipError = _zipController.text.trim().isEmpty ? 'Zip required' : '';
-      _occupationError = _occupationController.text.trim().isEmpty ? 'Occupation required' : '';
-      _maritalStatusError = _maritalStatus == null ? 'Marital status required' : '';
-      _employmentStatusError = _employmentStatus == null ? 'Employment status required' : '';
+      _occupationError = _occupationController.text.trim().isEmpty
+          ? 'Occupation required'
+          : '';
+      _maritalStatusError = _maritalStatus == null
+          ? 'Marital status required'
+          : '';
+      _employmentStatusError = _employmentStatus == null
+          ? 'Employment status required'
+          : '';
       _imageError = _clntImage == null ? 'Profile image required' : '';
 
       isValid = [
@@ -235,9 +267,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           _maritalStatus!.toLowerCase() == 'married' ? 'Yes' : 'No';
       request.fields['employment_status'] =
           _employmentStatus!.toLowerCase() == 'employed' ||
-                  _employmentStatus!.toLowerCase() == 'self-employed'
-              ? 'yes'
-              : 'no';
+              _employmentStatus!.toLowerCase() == 'self-employed'
+          ? 'yes'
+          : 'no';
       request.fields['fcm_token'] = _fcmToken;
 
       if (_clntImage != null) {
@@ -262,9 +294,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (responseBody.statusCode == 200 || responseBody.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Registration successful!'),
-            backgroundColor: Color(0xFF169060),
+            backgroundColor: primaryColor,
           ),
         );
         Navigator.pushReplacementNamed(context, '/login');
@@ -279,7 +311,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         );
         setState(() {
-          _error = 'Registration failed: ${errorData['message'] ?? responseBody.body}';
+          _error =
+              'Registration failed: ${errorData['message'] ?? responseBody.body}';
         });
       }
     } catch (e) {
@@ -299,220 +332,238 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Apply common background
-          const Bg(),
-          Column(
-            children: [
-              // Header with Back Button
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 16,
-                  bottom: 20,
-                  left: 16,
-                  right: 16,
-                ),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF169060),
-                      Color(0xFF175B58),
-                      Color(0xFF19214F),
-                    ],
-                    stops: [0.30, 0.70, 1],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(22),
-                    bottomRight: Radius.circular(22),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(
-                        Icons.arrow_back_ios,
-                        size: scaleFont(24),
-                        color: Colors.white,
-                      ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'Registration',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: scaleFont(24),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: scaleFont(24)), // Spacer for alignment
-                  ],
-                ),
+          // Background Gradient (35% from top)
+          Container(
+            height: height * 0.35,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: width * 0.05,
-                      vertical: height * 0.03,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_error.isNotEmpty)
-                          Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _error,
-                              style: TextStyle(
-                                fontSize: scaleFont(14),
-                                color: Colors.redAccent,
-                              ),
-                            ),
-                          ),
-                        SizedBox(height: height * 0.02),
-                        _buildTextField(
-                          controller: _fullNameController,
-                          hint: 'Full Name',
-                          error: _fullNameError,
-                          icon: Icons.person_outline,
-                        ),
-                        _buildTextField(
-                          controller: _dobController,
-                          hint: 'Date of Birth',
-                          error: _dobError,
-                          icon: Icons.calendar_today,
-                          readOnly: true,
-                          onTap: _selectDate,
-                        ),
-                        _buildDropdown(
-                          value: _gender,
-                          items: ['Male', 'Female', 'Other'],
-                          hint: 'Gender',
-                          error: _genderError,
-                          onChanged: (v) => setState(() => _gender = v),
-                        ),
-                        _buildTextField(
-                          controller: _emailController,
-                          hint: 'Email',
-                          error: _emailError,
-                          icon: Icons.email_outlined,
-                          keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
-                          textCapitalization: TextCapitalization.none,
-                        ),
-                        _buildTextField(
-                          controller: _phoneController,
-                          hint: 'Primary Phone',
-                          error: _phoneError,
-                          icon: Icons.phone_outlined,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _buildTextField(
-                          controller: _altPhoneController,
-                          hint: 'Secondary Phone',
-                          icon: Icons.phone_iphone_outlined,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _buildTextField(
-                          controller: _address1Controller,
-                          hint: 'Address 1st Line',
-                          error: _addressError,
-                          icon: Icons.home_outlined,
-                        ),
-                        _buildTextField(
-                          controller: _address2Controller,
-                          hint: 'Address 2nd Line (Optional)',
-                          icon: Icons.home_outlined,
-                        ),
-                        _buildTextField(
-                          controller: _citySuburbController,
-                          hint: 'City/Suburb',
-                          error: _cityError,
-                          icon: Icons.location_city_outlined,
-                        ),
-                        _buildCountryDropdown(),
-                        _buildStateDropdown(),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTextField(
-                                controller: _zipController,
-                                hint: 'Postal/Zip Code',
-                                error: _zipError,
-                                icon: Icons.local_post_office_outlined,
-                              ),
-                            ),
-                          ],
-                        ),
-                        _buildImagePicker(),
-                        _buildTextField(
-                          controller: _tfnController,
-                          hint: 'Tax File Number (TFN)',
-                          icon: Icons.description_outlined,
-                        ),
-                        _buildTextField(
-                          controller: _occupationController,
-                          hint: 'Occupation',
-                          error: _occupationError,
-                          icon: Icons.work_outline,
-                        ),
-                        _buildDropdown(
-                          value: _maritalStatus,
-                          items: ['Single', 'Married', 'Divorced', 'Widowed'],
-                          hint: 'Marital Status',
-                          error: _maritalStatusError,
-                          onChanged: (v) => setState(() => _maritalStatus = v),
-                        ),
-                        _buildDropdown(
-                          value: _employmentStatus,
-                          items: ['Employed', 'Self-Employed', 'Transition to Retirement Age', 'Retired', 'Student'],
-                          hint: 'Employment Status',
-                          error: _employmentStatusError,
-                          onChanged: (v) => setState(() => _employmentStatus = v),
-                        ),
-                        SizedBox(height: height * 0.04),
-                        _buildRegisterButton(),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: Color(0xFF169060)),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Registering...',
-                      style: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700, // Thicker font
-                      ),
-                    ),
-                  ],
-                ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(scaleWidth(30)),
+                bottomRight: Radius.circular(scaleWidth(30)),
               ),
             ),
+          ),
+          
+          SafeArea(
+            child: Column(
+              children: [
+                // Header
+                _buildHeader(),
+                
+                SizedBox(height: scaleHeight(20)),
+                
+                // Content
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
+                    child: _buildFormCard(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          if (_isLoading) _buildLoadingOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.all(scaleWidth(20)),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: EdgeInsets.all(scaleWidth(8)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: scaleFont(20),
+              ),
+            ),
+          ),
+          
+          Expanded(
+            child: Text(
+              'Registration',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: scaleFont(24),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          
+          SizedBox(width: scaleWidth(36)), // Balance layout
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormCard() {
+    return Container(
+      padding: EdgeInsets.all(scaleWidth(20)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_error.isNotEmpty) _buildErrorCard(),
+          
+          _buildTextField(
+            controller: _fullNameController,
+            hint: 'Full Name',
+            error: _fullNameError,
+            icon: Icons.person_outline,
+          ),
+          _buildTextField(
+            controller: _dobController,
+            hint: 'Date of Birth',
+            error: _dobError,
+            icon: Icons.calendar_today,
+            readOnly: true,
+            onTap: _selectDate,
+          ),
+          _buildDropdown(
+            value: _gender,
+            items: ['Male', 'Female', 'Other'],
+            hint: 'Gender',
+            error: _genderError,
+            onChanged: (v) => setState(() => _gender = v),
+          ),
+          _buildTextField(
+            controller: _emailController,
+            hint: 'Email',
+            error: _emailError,
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            textCapitalization: TextCapitalization.none,
+          ),
+          _buildTextField(
+            controller: _phoneController,
+            hint: 'Primary Phone',
+            error: _phoneError,
+            icon: Icons.phone_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+          _buildTextField(
+            controller: _altPhoneController,
+            hint: 'Secondary Phone',
+            icon: Icons.phone_iphone_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+          _buildTextField(
+            controller: _address1Controller,
+            hint: 'Address 1st Line',
+            error: _addressError,
+            icon: Icons.home_outlined,
+          ),
+          _buildTextField(
+            controller: _address2Controller,
+            hint: 'Address 2nd Line (Optional)',
+            icon: Icons.home_outlined,
+          ),
+          _buildTextField(
+            controller: _citySuburbController,
+            hint: 'City/Suburb',
+            error: _cityError,
+            icon: Icons.location_city_outlined,
+          ),
+          _buildCountryDropdown(),
+          _buildStateDropdown(),
+          _buildTextField(
+            controller: _zipController,
+            hint: 'Postal/Zip Code',
+            error: _zipError,
+            icon: Icons.local_post_office_outlined,
+          ),
+          _buildImagePicker(),
+          _buildTextField(
+            controller: _tfnController,
+            hint: 'Tax File Number (TFN)',
+            icon: Icons.description_outlined,
+          ),
+          _buildTextField(
+            controller: _occupationController,
+            hint: 'Occupation',
+            error: _occupationError,
+            icon: Icons.work_outline,
+          ),
+          _buildDropdown(
+            value: _maritalStatus,
+            items: ['Single', 'Married', 'Divorced', 'Widowed'],
+            hint: 'Marital Status',
+            error: _maritalStatusError,
+            onChanged: (v) => setState(() => _maritalStatus = v),
+          ),
+          _buildDropdown(
+            value: _employmentStatus,
+            items: [
+              'Employed',
+              'Self-Employed',
+              'Transition to Retirement Age',
+              'Retired',
+              'Student',
+            ],
+            hint: 'Employment Status',
+            error: _employmentStatusError,
+            onChanged: (v) => setState(() => _employmentStatus = v),
+          ),
+          SizedBox(height: scaleHeight(30)),
+          _buildRegisterButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return Container(
+      margin: EdgeInsets.only(bottom: scaleHeight(20)),
+      padding: EdgeInsets.all(scaleWidth(16)),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red[600], size: scaleFont(20)),
+          SizedBox(width: scaleWidth(12)),
+          Expanded(
+            child: Text(
+              _error,
+              style: TextStyle(
+                fontSize: scaleFont(14),
+                color: Colors.red[700],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -529,9 +580,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     TextCapitalization textCapitalization = TextCapitalization.sentences,
     VoidCallback? onTap,
   }) {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -545,14 +593,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              fontSize: scaleFont(16),
+              fontSize: scaleFont(14),
               color: Colors.grey.shade500,
             ),
             prefixIcon: icon != null
-                ? Icon(
-                    icon,
-                    color: Colors.grey.shade500,
-                    size: scaleFont(20),
+                ? Container(
+                    margin: EdgeInsets.all(scaleWidth(8)),
+                    padding: EdgeInsets.all(scaleWidth(8)),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          primaryColor.withOpacity(0.1),
+                          secondaryColor.withOpacity(0.1)
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: primaryColor, size: scaleFont(18)),
                   )
                 : null,
             filled: true,
@@ -567,21 +626,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
+              borderSide: BorderSide(color: primaryColor, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
-              horizontal: width * 0.04,
-              vertical: height * 0.02,
+              horizontal: scaleWidth(16),
+              vertical: scaleHeight(16),
             ),
           ),
           style: TextStyle(
-            fontSize: scaleFont(16),
-            color: const Color(0xFF1E3A5F),
+            fontSize: scaleFont(14),
+            color: Colors.black87,
           ),
         ),
         if (error != null && error.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               error,
               style: TextStyle(
@@ -590,7 +649,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
@@ -602,31 +661,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
     String? error,
     required ValueChanged<String?> onChanged,
   }) {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
           value: value,
           items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(
-                      item,
-                      style: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: const Color(0xFF1E3A5F),
-                      ),
+              .map(
+                (item) => DropdownMenuItem(
+                  value: item,
+                  child: Text(
+                    item,
+                    style: TextStyle(
+                      fontSize: scaleFont(14),
+                      color: Colors.black87,
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              fontSize: scaleFont(16),
+              fontSize: scaleFont(14),
               color: Colors.grey.shade500,
             ),
             filled: true,
@@ -641,11 +699,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
+              borderSide: BorderSide(color: primaryColor, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
-              horizontal: width * 0.04,
-              vertical: height * 0.02,
+              horizontal: scaleWidth(16),
+              vertical: scaleHeight(16),
             ),
           ),
           dropdownColor: Colors.white,
@@ -657,7 +715,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (error != null && error.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               error,
               style: TextStyle(
@@ -666,15 +724,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildCountryDropdown() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -685,13 +740,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: EdgeInsets.symmetric(
-                  horizontal: width * 0.04,
-                  vertical: height * 0.02,
+                  horizontal: scaleWidth(16),
+                  vertical: scaleHeight(16),
                 ),
                 child: Text(
                   'Loading countries...',
                   style: TextStyle(
-                    fontSize: scaleFont(16),
+                    fontSize: scaleFont(14),
                     color: Colors.grey.shade500,
                   ),
                 ),
@@ -705,8 +760,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Text(
                           country['cntr_name'] ?? '',
                           style: TextStyle(
-                            fontSize: scaleFont(16),
-                            color: const Color(0xFF1E3A5F),
+                            fontSize: scaleFont(14),
+                            color: Colors.black87,
                           ),
                         ),
                       ),
@@ -725,7 +780,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 decoration: InputDecoration(
                   hintText: 'Country',
                   hintStyle: TextStyle(
-                    fontSize: scaleFont(16),
+                    fontSize: scaleFont(14),
                     color: Colors.grey.shade500,
                   ),
                   filled: true,
@@ -740,11 +795,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: width * 0.04,
-                    vertical: height * 0.02,
+                    horizontal: scaleWidth(16),
+                    vertical: scaleHeight(16),
                   ),
                 ),
                 dropdownColor: Colors.white,
@@ -754,15 +809,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   size: scaleFont(24),
                 ),
               ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildStateDropdown() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -773,87 +825,89 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: EdgeInsets.symmetric(
-                  horizontal: width * 0.04,
-                  vertical: height * 0.02,
+                  horizontal: scaleWidth(16),
+                  vertical: scaleHeight(16),
                 ),
                 child: Text(
                   'Select a country first',
                   style: TextStyle(
-                    fontSize: scaleFont(16),
+                    fontSize: scaleFont(14),
                     color: Colors.grey.shade500,
                   ),
                 ),
               )
             : _isFetchingStates || _states.isEmpty
-                ? Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: width * 0.04,
-                      vertical: height * 0.02,
-                    ),
-                    child: Text(
-                      _isFetchingStates ? 'Loading states...' : 'No states available',
-                      style: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  )
-                : DropdownButtonFormField<String>(
-                    value: _selectedStateId,
-                    items: _states
-                        .map(
-                          (state) => DropdownMenuItem(
-                            value: state['stat_id'].toString(),
-                            child: Text(
-                              state['stat_name'] ?? '',
-                              style: TextStyle(
-                                fontSize: scaleFont(16),
-                                color: const Color(0xFF1E3A5F),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _selectedStateId = v),
-                    decoration: InputDecoration(
-                      hintText: 'State/Region',
-                      hintStyle: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: Colors.grey.shade500,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: width * 0.04,
-                        vertical: height * 0.02,
-                      ),
-                    ),
-                    dropdownColor: Colors.white,
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: Colors.grey.shade500,
-                      size: scaleFont(24),
-                    ),
+            ? Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: scaleWidth(16),
+                  vertical: scaleHeight(16),
+                ),
+                child: Text(
+                  _isFetchingStates
+                      ? 'Loading states...'
+                      : 'No states available',
+                  style: TextStyle(
+                    fontSize: scaleFont(14),
+                    color: Colors.grey.shade500,
                   ),
+                ),
+              )
+            : DropdownButtonFormField<String>(
+                value: _selectedStateId,
+                items: _states
+                    .map(
+                      (state) => DropdownMenuItem(
+                        value: state['stat_id'].toString(),
+                        child: Text(
+                          state['stat_name'] ?? '',
+                          style: TextStyle(
+                            fontSize: scaleFont(14),
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedStateId = v),
+                decoration: InputDecoration(
+                  hintText: 'State/Region',
+                  hintStyle: TextStyle(
+                    fontSize: scaleFont(14),
+                    color: Colors.grey.shade500,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: scaleWidth(16),
+                    vertical: scaleHeight(16),
+                  ),
+                ),
+                dropdownColor: Colors.white,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.grey.shade500,
+                  size: scaleFont(24),
+                ),
+              ),
         if (_stateError.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               _stateError,
               style: TextStyle(
@@ -862,15 +916,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildImagePicker() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -883,8 +934,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               border: Border.all(color: Colors.grey.shade200, width: 1),
             ),
             padding: EdgeInsets.symmetric(
-              horizontal: width * 0.04,
-              vertical: height * 0.02,
+              horizontal: scaleWidth(16),
+              vertical: scaleHeight(16),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -892,14 +943,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Text(
                   _clntImage == null ? 'Select Profile Image' : 'Change Image',
                   style: TextStyle(
-                    fontSize: scaleFont(16),
-                    color: _clntImage == null ? Colors.grey.shade500 : const Color(0xFF1E3A5F),
+                    fontSize: scaleFont(14),
+                    color: _clntImage == null
+                        ? Colors.grey.shade500
+                        : Colors.black87,
                   ),
                 ),
-                Icon(
-                  Icons.photo_camera_outlined,
-                  color: _clntImage == null ? Colors.grey.shade500 : const Color(0xFF169060),
-                  size: scaleFont(20),
+                Container(
+                  padding: EdgeInsets.all(scaleWidth(8)),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        primaryColor.withOpacity(0.1),
+                        secondaryColor.withOpacity(0.1)
+                      ],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.photo_camera_outlined,
+                    color: primaryColor,
+                    size: scaleFont(18),
+                  ),
                 ),
               ],
             ),
@@ -907,19 +974,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         if (_clntImage != null)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               'Selected: ${_clntImage!.name}',
               style: TextStyle(
                 fontSize: scaleFont(12),
-                color: const Color(0xFF1E3A5F),
+                color: primaryColor,
                 fontStyle: FontStyle.italic,
               ),
             ),
           ),
         if (_imageError.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               _imageError,
               style: TextStyle(
@@ -928,54 +995,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildRegisterButton() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF169060),
-            Color(0xFF175B58),
-            Color(0xFF19214F),
-          ],
-          stops: [0.30, 0.70, 1],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 8,
+      child: GestureDetector(
+        onTap: _isLoading ? null : handleRegister,
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: scaleHeight(16)),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [primaryColor, secondaryColor],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: Offset(0, 4),
+                blurRadius: 8,
+              ),
+            ],
           ),
-        ],
+          child: Text(
+            _isLoading ? 'Registering...' : 'Register',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: scaleFont(16),
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
       ),
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : handleRegister,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: EdgeInsets.symmetric(vertical: height * 0.02),
-          shape: RoundedRectangleBorder(
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.all(scaleWidth(20)),
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        child: Text(
-          _isLoading ? 'Registering...' : 'Register',
-          style: TextStyle(
-            fontSize: scaleFont(16),
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: primaryColor),
+              SizedBox(height: scaleHeight(16)),
+              Text(
+                'Registering...',
+                style: TextStyle(
+                  fontSize: scaleFont(16),
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'add_advisor_request_screen.dart';
 import 'advisor_request.dart';
 import 'dashboard.dart';
 import 'profile.dart';
+import 'package:financial_user/color_constants.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -26,21 +27,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.3,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.elasticOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
 
-    _rotationAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeInOut,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -63,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         return const AboutUsScreen();
       case 'requests':
       default:
-        return const AdvisorRequestsScreen();
+        return AdvisorRequestsScreen();
     }
   }
 
@@ -101,21 +94,27 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           return Transform.scale(
             scale: _scaleAnimation.value,
             child: Transform.rotate(
-              angle: _rotationAnimation.value * 0.5, // Half rotation for subtle effect
+              angle:
+                  _rotationAnimation.value *
+                  0.5, // Half rotation for subtle effect
               child: Container(
                 width: width * 0.17,
                 height: width * 0.17,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-                    stops: [0.30, 0.70, 1],
+                    colors: [
+                      (primaryColor), // Orange
+                      (secondaryColor), // Pink
+                    ],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.2 * _scaleAnimation.value),
+                      color: Colors.black.withOpacity(
+                        0.2 * _scaleAnimation.value,
+                      ),
                       blurRadius: 15 * _scaleAnimation.value,
                       offset: Offset(0, 5 * _scaleAnimation.value),
                     ),
@@ -130,18 +129,21 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   child: IconButton(
                     icon: Icon(
                       Icons.add,
-                      size: 30 + (10 * (_scaleAnimation.value - 1)), // Scale icon size too
+                      size:
+                          30 +
+                          (10 *
+                              (_scaleAnimation.value -
+                                  1)), // Scale icon size too
                       color: Colors.black,
                     ),
                     onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddAdvisorRequestScreen(),
-                      ),
-                    );
-                    
-                  },
+                      final result = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AddAdvisorRequestScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -210,8 +212,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required double width,
   }) {
     const gradient = LinearGradient(
-      colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-      stops: [0.30, 0.70, 1],
+      colors: [
+        (primaryColor), // Orange
+        (secondaryColor), // Pink
+      ],
       begin: Alignment.centerLeft,
       end: Alignment.centerRight,
     );

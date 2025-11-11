@@ -6,8 +6,8 @@ class Bg extends StatelessWidget {
 
   const Bg({
     Key? key,
-    this.color1 = const Color(0xFFedf3f3), 
-    this.color2 = const Color(0xFFadcbc9), 
+    this.color1 = const Color.fromARGB(255, 255, 255, 255), 
+    this.color2 = const Color.fromARGB(255, 255, 255, 255), 
   }) : super(key: key);
 
   @override

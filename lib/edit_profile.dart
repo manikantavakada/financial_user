@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 
+import 'color_constants.dart';
+
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -51,7 +53,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String maritalStatusError = '';
   String employmentStatusError = '';
 
-  final String baseUrl = 'https://ss.singledeck.in/api/v1/';
+  final String baseUrl = 'https://ds.singledeck.in/api/v1/';
   DateTime? selectedDate;
 
   @override
@@ -83,6 +85,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  // Responsive scaling functions
+  double scaleFont(double size) {
+    return size * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleWidth(double width) {
+    return width * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleHeight(double height) {
+    return height * MediaQuery.of(context).size.height / 812;
+  }
+
   Future<void> _fetchCountries() async {
     try {
       final response = await http.get(
@@ -92,7 +107,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         final List<dynamic> data = responseData['data'] ?? [];
         setState(() {
-          countries = data.map((item) => Map<String, dynamic>.from(item)).toList();
+          countries = data
+              .map((item) => Map<String, dynamic>.from(item))
+              .toList();
         });
       } else {
         setState(() {
@@ -161,7 +178,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['status'] == 'success' && data['data'] != null && data['data'].isNotEmpty) {
+        if (data['status'] == 'success' &&
+            data['data'] != null &&
+            data['data'].isNotEmpty) {
           setState(() {
             clientData = data['data'][0];
             isLoading = false;
@@ -190,12 +209,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void _populateFields() {
     fullNameController.text = clientData?['clnt_full_name'] ?? '';
     dobController.text = _formatDate(clientData?['clnt_dob']) ?? '';
-    selectedDate = clientData?['clnt_dob'] != null ? DateTime.parse(clientData?['clnt_dob']) : null;
-    // Normalize gender to match dropdown items (Male, Female, Other)
+    selectedDate = clientData?['clnt_dob'] != null
+        ? DateTime.parse(clientData?['clnt_dob'])
+        : null;
     selectedGender = clientData?['clnt_gender'] != null
         ? clientData!['clnt_gender'].toString().toLowerCase().replaceFirst(
-              clientData!['clnt_gender'].toString().toLowerCase()[0],
-              clientData!['clnt_gender'].toString().toLowerCase()[0].toUpperCase())
+            clientData!['clnt_gender'].toString().toLowerCase()[0],
+            clientData!['clnt_gender']
+                .toString()
+                .toLowerCase()[0]
+                .toUpperCase(),
+          )
         : null;
     altPhoneController.text = clientData?['clnt_alt_phone'] ?? '';
     addressController.text = clientData?['clnt_address'] ?? '';
@@ -203,8 +227,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     zipController.text = clientData?['clnt_zip'] ?? '';
     tfnController.text = clientData?['clnt_tfn'] ?? '';
     occupationController.text = clientData?['clnt_occupation'] ?? '';
-    selectedMaritalStatus = clientData?['clnt_marital_status'] == 'Yes' ? 'Married' : 'Single';
-    selectedEmploymentStatus = clientData?['clnt_employment_status'] == 'yes' ? 'Employed' : 'Unemployed';
+    selectedMaritalStatus = clientData?['clnt_marital_status'] == 'Yes'
+        ? 'Married'
+        : 'Single';
+    selectedEmploymentStatus = clientData?['clnt_employment_status'] == 'yes'
+        ? 'Employed'
+        : 'Unemployed';
     selectedCountryId = clientData?['clnt_countrie']?.toString();
     selectedStateId = clientData?['clnt_state']?.toString();
 
@@ -216,16 +244,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   bool validateForm() {
     bool isValid = true;
     setState(() {
-      fullNameError = fullNameController.text.trim().isEmpty ? 'Full name required' : '';
-      dobError = dobController.text.trim().isEmpty ? 'Date of birth required' : '';
+      fullNameError = fullNameController.text.trim().isEmpty
+          ? 'Full name required'
+          : '';
+      dobError = dobController.text.trim().isEmpty
+          ? 'Date of birth required'
+          : '';
       genderError = selectedGender == null ? 'Gender required' : '';
-      addressError = addressController.text.trim().isEmpty ? 'Address required' : '';
+      addressError = addressController.text.trim().isEmpty
+          ? 'Address required'
+          : '';
       cityError = cityController.text.trim().isEmpty ? 'City required' : '';
       stateError = selectedStateId == null ? 'State required' : '';
       zipError = zipController.text.trim().isEmpty ? 'Zip required' : '';
-      occupationError = occupationController.text.trim().isEmpty ? 'Occupation required' : '';
-      maritalStatusError = selectedMaritalStatus == null ? 'Marital status required' : '';
-      employmentStatusError = selectedEmploymentStatus == null ? 'Employment status required' : '';
+      occupationError = occupationController.text.trim().isEmpty
+          ? 'Occupation required'
+          : '';
+      maritalStatusError = selectedMaritalStatus == null
+          ? 'Marital status required'
+          : '';
+      employmentStatusError = selectedEmploymentStatus == null
+          ? 'Employment status required'
+          : '';
 
       isValid = [
         fullNameError,
@@ -273,8 +313,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           'zip': zipController.text.trim(),
           'tfn': tfnController.text.trim(),
           'occupation': occupationController.text.trim(),
-          'marital_status': selectedMaritalStatus!.toLowerCase() == 'married' ? 'Yes' : 'No',
-          'employment_status': selectedEmploymentStatus!.toLowerCase() == 'employed' ? 'yes' : 'no',
+          'marital_status': selectedMaritalStatus!.toLowerCase() == 'married'
+              ? 'Yes'
+              : 'No',
+          'employment_status':
+              selectedEmploymentStatus!.toLowerCase() == 'employed'
+              ? 'yes'
+              : 'no',
           'country': selectedCountryId,
           'state': selectedStateId,
         }),
@@ -283,9 +328,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['status'] == 'success') {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Profile updated successfully!'),
-            backgroundColor: Color(0xFF169060),
+            backgroundColor: primaryColor,
           ),
         );
         Navigator.pop(context, true);
@@ -294,10 +339,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           error = 'Update failed: ${data['message'] ?? response.body}';
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error),
-            backgroundColor: Colors.redAccent,
-          ),
+          SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
         );
       }
     } catch (e) {
@@ -305,10 +347,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         error = 'Error during update: $e';
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(error),
-          backgroundColor: Colors.redAccent,
-        ),
+        SnackBar(content: Text(error), backgroundColor: Colors.redAccent),
       );
     } finally {
       setState(() {
@@ -326,14 +365,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF169060),
+            colorScheme: ColorScheme.light(
+              primary: primaryColor,
               onPrimary: Colors.white,
-              onSurface: Color(0xFF1E3A5F),
+              onSurface: Colors.black87,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF169060),
+                foregroundColor: primaryColor,
               ),
             ),
           ),
@@ -349,10 +388,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  double scaleFont(double size) {
-    return (size * MediaQuery.of(context).size.width / 375).clamp(size * 0.8, size * 1.2);
-  }
-
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -362,195 +397,223 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       children: [
         Scaffold(
           backgroundColor: Colors.white,
-          body: Column(
+          body: Stack(
             children: [
+              // Background Gradient (35% from top)
               Container(
-                width: double.infinity,
-                padding: EdgeInsets.only(
-                  top: MediaQuery.of(context).padding.top + 16,
-                  bottom: 20,
-                  left: 16,
-                  right: 16,
-                ),
-                decoration: const BoxDecoration(
+                height: height * 0.35,
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [
-                      Color(0xFF169060),
-                      Color(0xFF175B58),
-                      Color(0xFF19214F),
-                    ],
-                    stops: [0.30, 0.70, 1],
+                    colors: [primaryColor, secondaryColor],
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
                   ),
                   borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(22),
-                    bottomRight: Radius.circular(22),
+                    bottomLeft: Radius.circular(scaleWidth(30)),
+                    bottomRight: Radius.circular(scaleWidth(30)),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Icon(
-                        Icons.arrow_back_ios,
-                        size: scaleFont(24),
-                        color: Colors.white,
-                      ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          'Edit Profile',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: scaleFont(24),
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: scaleFont(24)),
-                  ],
                 ),
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: width * 0.05,
-                      vertical: height * 0.03,
+              
+              SafeArea(
+                child: Column(
+                  children: [
+                    // Header
+                    _buildHeader(),
+                    
+                    SizedBox(height: scaleHeight(20)),
+                    
+                    // Content
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (error.isNotEmpty) _buildErrorCard(),
+                            
+                            _buildFormCard(),
+                          ],
+                        ),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (error.isNotEmpty)
-                          Container(
-                            padding: EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              error,
-                              style: TextStyle(
-                                fontSize: scaleFont(14),
-                                color: Colors.redAccent,
-                              ),
-                            ),
-                          ),
-                        SizedBox(height: height * 0.02),
-                        _buildTextField(
-                          controller: fullNameController,
-                          hint: 'Full Name',
-                          error: fullNameError,
-                          icon: Icons.person_outline,
-                        ),
-                        _buildTextField(
-                          controller: dobController,
-                          hint: 'Date of Birth',
-                          error: dobError,
-                          icon: Icons.calendar_today,
-                          readOnly: true,
-                          onTap: _selectDate,
-                        ),
-                        _buildDropdown(
-                          value: selectedGender,
-                          items: ['Male', 'Female', 'Other'],
-                          hint: 'Gender',
-                          error: genderError,
-                          onChanged: (v) => setState(() => selectedGender = v),
-                        ),
-                        _buildTextField(
-                          controller: altPhoneController,
-                          hint: 'Secondary Phone',
-                          icon: Icons.phone_iphone_outlined,
-                          keyboardType: TextInputType.phone,
-                        ),
-                        _buildTextField(
-                          controller: addressController,
-                          hint: 'Full Address',
-                          error: addressError,
-                          icon: Icons.home_outlined,
-                        ),
-                        _buildTextField(
-                          controller: cityController,
-                          hint: 'City',
-                          error: cityError,
-                          icon: Icons.location_city_outlined,
-                        ),
-                        _buildCountryDropdown(),
-                        _buildStateDropdown(),
-                        _buildTextField(
-                          controller: zipController,
-                          hint: 'Postal/Zip Code',
-                          error: zipError,
-                          icon: Icons.local_post_office_outlined,
-                        ),
-                        _buildTextField(
-                          controller: tfnController,
-                          hint: 'Tax File Number (TFN)',
-                          icon: Icons.description_outlined,
-                        ),
-                        _buildTextField(
-                          controller: occupationController,
-                          hint: 'Occupation',
-                          error: occupationError,
-                          icon: Icons.work_outline,
-                        ),
-                        _buildDropdown(
-                          value: selectedMaritalStatus,
-                          items: ['Single', 'Married', 'Divorced', 'Widowed'],
-                          hint: 'Marital Status',
-                          error: maritalStatusError,
-                          onChanged: (v) => setState(() => selectedMaritalStatus = v),
-                        ),
-                        _buildDropdown(
-                          value: selectedEmploymentStatus,
-                          items: ['Employed', 'Self-Employed', 'Unemployed', 'Retired', 'Student'],
-                          hint: 'Employment Status',
-                          error: employmentStatusError,
-                          onChanged: (v) => setState(() => selectedEmploymentStatus = v),
-                        ),
-                        SizedBox(height: height * 0.04),
-                        _buildUpdateButton(),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
-        if (isLoading || isSubmitting)
-          Container(
-            color: Colors.black54,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: MediaQuery.of(context).size.width * 0.8,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const CircularProgressIndicator(color: Color(0xFF169060)),
-                    const SizedBox(height: 10),
-                    Text(
-                      isLoading ? 'Loading...' : 'Updating...',
-                      style: TextStyle(
-                        fontSize: scaleFont(16).clamp(14.0, 18.0),
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
+        
+        if (isLoading || isSubmitting) _buildLoadingOverlay(),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.all(scaleWidth(20)),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              padding: EdgeInsets.all(scaleWidth(8)),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                Icons.arrow_back,
+                color: Colors.white,
+                size: scaleFont(20),
               ),
             ),
           ),
-      ],
+          
+          Expanded(
+            child: Text(
+              'Edit Profile',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: scaleFont(24),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          
+          SizedBox(width: scaleWidth(36)), // Balance the layout
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return Container(
+      margin: EdgeInsets.only(bottom: scaleHeight(20)),
+      padding: EdgeInsets.all(scaleWidth(16)),
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red[200]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, color: Colors.red[600], size: scaleFont(20)),
+          SizedBox(width: scaleWidth(12)),
+          Expanded(
+            child: Text(
+              error,
+              style: TextStyle(
+                fontSize: scaleFont(14),
+                color: Colors.red[700],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormCard() {
+    return Container(
+      padding: EdgeInsets.all(scaleWidth(20)),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildTextField(
+            controller: fullNameController,
+            hint: 'Full Name',
+            error: fullNameError,
+            icon: Icons.person_outline,
+          ),
+          _buildTextField(
+            controller: dobController,
+            hint: 'Date of Birth',
+            error: dobError,
+            icon: Icons.calendar_today,
+            readOnly: true,
+            onTap: _selectDate,
+          ),
+          _buildDropdown(
+            value: selectedGender,
+            items: ['Male', 'Female', 'Other'],
+            hint: 'Gender',
+            error: genderError,
+            onChanged: (v) => setState(() => selectedGender = v),
+          ),
+          _buildTextField(
+            controller: altPhoneController,
+            hint: 'Secondary Phone',
+            icon: Icons.phone_iphone_outlined,
+            keyboardType: TextInputType.phone,
+          ),
+          _buildTextField(
+            controller: addressController,
+            hint: 'Full Address',
+            error: addressError,
+            icon: Icons.home_outlined,
+          ),
+          _buildTextField(
+            controller: cityController,
+            hint: 'City',
+            error: cityError,
+            icon: Icons.location_city_outlined,
+          ),
+          _buildCountryDropdown(),
+          _buildStateDropdown(),
+          _buildTextField(
+            controller: zipController,
+            hint: 'Postal/Zip Code',
+            error: zipError,
+            icon: Icons.local_post_office_outlined,
+          ),
+          _buildTextField(
+            controller: tfnController,
+            hint: 'Tax File Number (TFN)',
+            icon: Icons.description_outlined,
+          ),
+          _buildTextField(
+            controller: occupationController,
+            hint: 'Occupation',
+            error: occupationError,
+            icon: Icons.work_outline,
+          ),
+          _buildDropdown(
+            value: selectedMaritalStatus,
+            items: ['Single', 'Married', 'Divorced', 'Widowed'],
+            hint: 'Marital Status',
+            error: maritalStatusError,
+            onChanged: (v) => setState(() => selectedMaritalStatus = v),
+          ),
+          _buildDropdown(
+            value: selectedEmploymentStatus,
+            items: [
+              'Employed',
+              'Self-Employed',
+              'Unemployed',
+              'Retired',
+              'Student',
+            ],
+            hint: 'Employment Status',
+            error: employmentStatusError,
+            onChanged: (v) => setState(() => selectedEmploymentStatus = v),
+          ),
+          SizedBox(height: scaleHeight(30)),
+          _buildUpdateButton(),
+        ],
+      ),
     );
   }
 
@@ -561,13 +624,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     IconData? icon,
     TextInputType? keyboardType,
     bool readOnly = false,
-    bool autocorrect = true,
-    TextCapitalization textCapitalization = TextCapitalization.sentences,
     VoidCallback? onTap,
   }) {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -575,20 +633,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           controller: controller,
           readOnly: readOnly,
           keyboardType: keyboardType,
-          autocorrect: autocorrect,
-          textCapitalization: textCapitalization,
           onTap: onTap,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              fontSize: scaleFont(16),
+              fontSize: scaleFont(14),
               color: Colors.grey.shade500,
             ),
             prefixIcon: icon != null
-                ? Icon(
-                    icon,
-                    color: Colors.grey.shade500,
-                    size: scaleFont(20),
+                ? Container(
+                    margin: EdgeInsets.all(scaleWidth(8)),
+                    padding: EdgeInsets.all(scaleWidth(8)),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          primaryColor.withOpacity(0.1),
+                          secondaryColor.withOpacity(0.1)
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(icon, color: primaryColor, size: scaleFont(18)),
                   )
                 : null,
             filled: true,
@@ -603,21 +670,21 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
+              borderSide: BorderSide(color: primaryColor, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
-              horizontal: width * 0.04,
-              vertical: height * 0.02,
+              horizontal: scaleWidth(16),
+              vertical: scaleHeight(16),
             ),
           ),
           style: TextStyle(
-            fontSize: scaleFont(16),
-            color: const Color(0xFF1E3A5F),
+            fontSize: scaleFont(14),
+            color: Colors.black87,
           ),
         ),
         if (error != null && error.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               error,
               style: TextStyle(
@@ -626,7 +693,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
@@ -638,42 +705,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     String? error,
     required ValueChanged<String?> onChanged,
   }) {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-    bool isProcessing = false;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         DropdownButtonFormField<String>(
           value: value,
           items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Text(
-                      item,
-                      style: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: const Color(0xFF1E3A5F),
-                      ),
+              .map(
+                (item) => DropdownMenuItem(
+                  value: item,
+                  child: Text(
+                    item,
+                    style: TextStyle(
+                      fontSize: scaleFont(14),
+                      color: Colors.black87,
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
-          onChanged: isLoading || isSubmitting || isProcessing
-              ? null
-              : (v) {
-                  if (!isProcessing) {
-                    isProcessing = true;
-                    onChanged(v);
-                    Future.delayed(const Duration(milliseconds: 300), () {
-                      isProcessing = false;
-                    });
-                  }
-                },
+          onChanged: isLoading || isSubmitting ? null : onChanged,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(
-              fontSize: scaleFont(16),
+              fontSize: scaleFont(14),
               color: Colors.grey.shade500,
             ),
             filled: true,
@@ -688,11 +743,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
+              borderSide: BorderSide(color: primaryColor, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
-              horizontal: width * 0.04,
-              vertical: height * 0.02,
+              horizontal: scaleWidth(16),
+              vertical: scaleHeight(16),
             ),
           ),
           dropdownColor: Colors.white,
@@ -704,7 +759,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         if (error != null && error.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               error,
               style: TextStyle(
@@ -713,15 +768,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildCountryDropdown() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -732,13 +784,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: EdgeInsets.symmetric(
-                  horizontal: width * 0.04,
-                  vertical: height * 0.02,
+                  horizontal: scaleWidth(16),
+                  vertical: scaleHeight(16),
                 ),
                 child: Text(
                   'Loading countries...',
                   style: TextStyle(
-                    fontSize: scaleFont(16),
+                    fontSize: scaleFont(14),
                     color: Colors.grey.shade500,
                   ),
                 ),
@@ -752,8 +804,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: Text(
                           country['cntr_name'] ?? '',
                           style: TextStyle(
-                            fontSize: scaleFont(16),
-                            color: const Color(0xFF1E3A5F),
+                            fontSize: scaleFont(14),
+                            color: Colors.black87,
                           ),
                         ),
                       ),
@@ -774,7 +826,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 decoration: InputDecoration(
                   hintText: 'Country',
                   hintStyle: TextStyle(
-                    fontSize: scaleFont(16),
+                    fontSize: scaleFont(14),
                     color: Colors.grey.shade500,
                   ),
                   filled: true,
@@ -789,11 +841,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   contentPadding: EdgeInsets.symmetric(
-                    horizontal: width * 0.04,
-                    vertical: height * 0.02,
+                    horizontal: scaleWidth(16),
+                    vertical: scaleHeight(16),
                   ),
                 ),
                 dropdownColor: Colors.white,
@@ -803,15 +855,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   size: scaleFont(24),
                 ),
               ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildStateDropdown() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -822,89 +871,91 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: EdgeInsets.symmetric(
-                  horizontal: width * 0.04,
-                  vertical: height * 0.02,
+                  horizontal: scaleWidth(16),
+                  vertical: scaleHeight(16),
                 ),
                 child: Text(
                   'Select a country first',
                   style: TextStyle(
-                    fontSize: scaleFont(16),
+                    fontSize: scaleFont(14),
                     color: Colors.grey.shade500,
                   ),
                 ),
               )
             : isFetchingStates || states.isEmpty
-                ? Container(
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: width * 0.04,
-                      vertical: height * 0.02,
-                    ),
-                    child: Text(
-                      isFetchingStates ? 'Loading states...' : 'No states available',
-                      style: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: Colors.grey.shade500,
-                      ),
-                    ),
-                  )
-                : DropdownButtonFormField<String>(
-                    value: selectedStateId,
-                    items: states
-                        .map(
-                          (state) => DropdownMenuItem(
-                            value: state['stat_id'].toString(),
-                            child: Text(
-                              state['stat_name'] ?? '',
-                              style: TextStyle(
-                                fontSize: scaleFont(16),
-                                color: const Color(0xFF1E3A5F),
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: isLoading || isSubmitting
-                        ? null
-                        : (v) => setState(() => selectedStateId = v),
-                    decoration: InputDecoration(
-                      hintText: 'State/Region',
-                      hintStyle: TextStyle(
-                        fontSize: scaleFont(16),
-                        color: Colors.grey.shade500,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF169060), width: 2),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: width * 0.04,
-                        vertical: height * 0.02,
-                      ),
-                    ),
-                    dropdownColor: Colors.white,
-                    icon: Icon(
-                      Icons.arrow_drop_down,
-                      color: Colors.grey.shade500,
-                      size: scaleFont(24),
-                    ),
+            ? Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: EdgeInsets.symmetric(
+                  horizontal: scaleWidth(16),
+                  vertical: scaleHeight(16),
+                ),
+                child: Text(
+                  isFetchingStates
+                      ? 'Loading states...'
+                      : 'No states available',
+                  style: TextStyle(
+                    fontSize: scaleFont(14),
+                    color: Colors.grey.shade500,
                   ),
+                ),
+              )
+            : DropdownButtonFormField<String>(
+                value: selectedStateId,
+                items: states
+                    .map(
+                      (state) => DropdownMenuItem(
+                        value: state['stat_id'].toString(),
+                        child: Text(
+                          state['stat_name'] ?? '',
+                          style: TextStyle(
+                            fontSize: scaleFont(14),
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: isLoading || isSubmitting
+                    ? null
+                    : (v) => setState(() => selectedStateId = v),
+                decoration: InputDecoration(
+                  hintText: 'State/Region',
+                  hintStyle: TextStyle(
+                    fontSize: scaleFont(14),
+                    color: Colors.grey.shade500,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: scaleWidth(16),
+                    vertical: scaleHeight(16),
+                  ),
+                ),
+                dropdownColor: Colors.white,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: Colors.grey.shade500,
+                  size: scaleFont(24),
+                ),
+              ),
         if (stateError.isNotEmpty)
           Padding(
-            padding: EdgeInsets.only(top: 6, left: 12),
+            padding: EdgeInsets.only(top: scaleHeight(6), left: scaleWidth(12)),
             child: Text(
               stateError,
               style: TextStyle(
@@ -913,54 +964,72 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
             ),
           ),
-        SizedBox(height: height * 0.015),
+        SizedBox(height: scaleHeight(16)),
       ],
     );
   }
 
   Widget _buildUpdateButton() {
-    final height = MediaQuery.of(context).size.height;
-    final width = MediaQuery.of(context).size.width;
-
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF169060),
-            Color(0xFF175B58),
-            Color(0xFF19214F),
-          ],
-          stops: [0.30, 0.70, 1],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            offset: const Offset(0, 4),
-            blurRadius: 8,
+      child: GestureDetector(
+        onTap: isSubmitting ? null : _updateProfile,
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: scaleHeight(16)),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [primaryColor, secondaryColor],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                offset: Offset(0, 4),
+                blurRadius: 8,
+              ),
+            ],
           ),
-        ],
+          child: Text(
+            isSubmitting ? 'Updating...' : 'Update Profile',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: scaleFont(16),
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
       ),
-      child: ElevatedButton(
-        onPressed: isSubmitting ? null : _updateProfile,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: EdgeInsets.symmetric(vertical: height * 0.02),
-          shape: RoundedRectangleBorder(
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.all(scaleWidth(20)),
+          decoration: BoxDecoration(
+            color: Colors.white,
             borderRadius: BorderRadius.circular(12),
           ),
-        ),
-        child: Text(
-          isSubmitting ? 'Updating...' : 'Update Profile',
-          style: TextStyle(
-            fontSize: scaleFont(16),
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(color: primaryColor),
+              SizedBox(height: scaleHeight(16)),
+              Text(
+                isLoading ? 'Loading...' : 'Updating...',
+                style: TextStyle(
+                  fontSize: scaleFont(16),
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ),

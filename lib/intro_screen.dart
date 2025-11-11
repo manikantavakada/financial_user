@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'color_constants.dart';
+
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
 
@@ -7,7 +9,8 @@ class IntroScreen extends StatefulWidget {
   State<IntroScreen> createState() => _IntroScreenState();
 }
 
-class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStateMixin {
+class _IntroScreenState extends State<IntroScreen>
+    with SingleTickerProviderStateMixin {
   final PageController _controller = PageController();
   int _currentPage = 0;
 
@@ -26,7 +29,8 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
     },
     {
       'quote': 'We ask the right questions, so you get the right answers.',
-      'subtext': 'Let our smart assistant understand your needs and connect you to the right advisor.',
+      'subtext':
+          'Let our smart assistant understand your needs and connect you to the right advisor.',
     },
   ];
 
@@ -36,7 +40,10 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
 
   void _onNext() {
     if (_currentPage < _slides.length - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      _controller.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     }
   }
 
@@ -87,30 +94,35 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                       child: Column(
                         children: [
                           Padding(
-                            padding: EdgeInsets.only(top: height * 0.05, bottom: height * 0.06),
+                            padding: EdgeInsets.only(
+                              top: height * 0.05,
+                              bottom: height * 0.06,
+                            ),
                             child: Image.asset(
-                              'assets/Polar_logo.png',
+                              'assets/Polar_FavIcon.png',
                               width: height * 0.16,
                               height: height * 0.16,
                               fit: BoxFit.contain,
                             ),
                           ),
-                          AnimatedBuilder(
-                            animation: _animationController,
-                            builder: (context, child) {
-                              return Transform.scale(
-                                scale: 1 + 0.1 * _animationController.value,
-                                child: const Icon(
-                                  Icons.auto_awesome,
-                                  color: Color(0xFF169060),
-                                  size: 64,
-                                ),
-                              );
-                            },
-                          ),
+                          // AnimatedBuilder(
+                          //   animation: _animationController,
+                          //   builder: (context, child) {
+                          //     return Transform.scale(
+                          //       scale: 1 + 0.1 * _animationController.value,
+                          //       child: const Icon(
+                          //         Icons.auto_awesome,
+                          //         color: Color(0xFF169060),
+                          //         size: 64,
+                          //       ),
+                          //     );
+                          //   },
+                          // ),
                           const SizedBox(height: 18),
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: width * 0.1),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: width * 0.1,
+                            ),
                             child: Text(
                               slide['quote'] ?? '',
                               textAlign: TextAlign.center,
@@ -123,7 +135,9 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                           ),
                           const SizedBox(height: 16),
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: width * 0.12),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: width * 0.12,
+                            ),
                             child: Text(
                               slide['subtext'] ?? '',
                               textAlign: TextAlign.center,
@@ -142,9 +156,13 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                                 duration: const Duration(milliseconds: 300),
                                 width: _currentPage == i ? 25 : 12,
                                 height: 12,
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: _currentPage == i ? const Color(0xFF00A962) : const Color(0xFFD3D3D3),
+                                  color: _currentPage == i
+                                      ? const Color(0xFF00A962)
+                                      : const Color(0xFFD3D3D3),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                               );
@@ -153,10 +171,13 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                           const SizedBox(height: 30),
                           // Buttons
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: width * 0.08),
+                            padding: EdgeInsets.symmetric(
+                              horizontal: width * 0.08,
+                            ),
                             child: _currentPage < _slides.length - 1
                                 ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
                                       TextButton(
                                         onPressed: _onSkip,
@@ -171,15 +192,22 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                                       GestureDetector(
                                         onTap: _onNext,
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 32,
+                                            vertical: 12,
+                                          ),
                                           decoration: BoxDecoration(
                                             gradient: const LinearGradient(
-                                              colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-                                              stops: [0.30, 0.70, 1],
+                                              colors: [
+                                                (primaryColor), // Orange
+                                                (secondaryColor), // Pink
+                                              ],
                                               begin: Alignment.centerLeft,
                                               end: Alignment.centerRight,
                                             ),
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                           child: Text(
                                             'Next',
@@ -197,15 +225,22 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                                     child: GestureDetector(
                                       onTap: _onGetStarted,
                                       child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 32,
+                                          vertical: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           gradient: const LinearGradient(
-                                            colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-                                            stops: [0.30, 0.70, 1],
+                                            colors: [
+                                              (primaryColor), // Orange
+                                              (secondaryColor), // Pink
+                                            ],
                                             begin: Alignment.centerLeft,
                                             end: Alignment.centerRight,
                                           ),
-                                          borderRadius: BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
                                         ),
                                         child: Text(
                                           'Get Started',
@@ -219,7 +254,7 @@ class _IntroScreenState extends State<IntroScreen> with SingleTickerProviderStat
                                     ),
                                   ),
                           ),
-                          SizedBox(height: height * 0.05),
+                          SizedBox(height: height * 0.10),
                         ],
                       ),
                     ),

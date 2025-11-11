@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:shimmer/shimmer.dart';
 
 import 'add_advisor_request_screen.dart';
+import 'color_constants.dart';
 
 class AdvisorRequestsScreen extends StatefulWidget {
   const AdvisorRequestsScreen({super.key});
@@ -13,29 +14,53 @@ class AdvisorRequestsScreen extends StatefulWidget {
   State<AdvisorRequestsScreen> createState() => _AdvisorRequestsScreenState();
 }
 
-class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
+class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
+    with TickerProviderStateMixin {
+  late TabController _tabController;
   late Future<List<Map<String, dynamic>>> _requestsFuture;
+  String selectedFilter = 'All Requests';
+  String selectedTopNav = 'Pending';
+  String searchQuery = ''; // Added search query variable
+  TextEditingController searchController =
+      TextEditingController(); // Added controller
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     _requestsFuture = _fetchRequests();
   }
 
+  @override
+  void dispose() {
+    _tabController.dispose();
+    searchController.dispose(); // Dispose controller
+    super.dispose();
+  }
+
+  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleWidth(double width) {
+    return width * MediaQuery.of(context).size.width / 375;
+  }
+
+  double scaleHeight(double height) {
+    return height * MediaQuery.of(context).size.height / 812;
   }
 
   Color _statusColor(String status) {
     switch (status) {
       case 'Approved':
       case 'Accepted':
-        return const Color(0xFF169060); // Green for approved
+        return const Color(0xFF4CAF50); // Green
       case 'Rejected':
-        return const Color(0xFFE53935); // Red for rejected
+        return const Color(0xFFE53935); // Red
       case 'Pending':
       default:
-        return const Color(0xFF164454); // Blue for pending
+        return const Color(0xFFEA6716); // Orange
     }
   }
 
@@ -75,11 +100,12 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
     }
   }
 
+  // Updated date formatting to show "Requested: MM/DD"
   String _formatRequestDate(String? dateString) {
     if (dateString == null) return 'N/A';
     try {
       final date = DateTime.parse(dateString);
-      return '${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
+      return 'Date: ${date.month.toString().padLeft(2, '0')}/${date.day.toString().padLeft(2, '0')}/${date.year}';
     } catch (e) {
       return 'Invalid Date';
     }
@@ -106,7 +132,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
     if (clntId == null) return [];
 
     final url =
-        'https://ss.singledeck.in/api/v1/adviser/client-requests-list/?clnt_id=$clntId';
+        'https://ds.singledeck.in/api/v1/adviser/client-requests-list/?clnt_id=$clntId';
 
     try {
       final response = await http.get(Uri.parse(url));
@@ -125,19 +151,6 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
 
           debugPrint('=== PARSING REQUESTS ===');
           debugPrint('Total requests found: ${allRequests.length}');
-
-          for (int i = 0; i < allRequests.length; i++) {
-            final rawRequest = allRequests[i];
-            debugPrint(
-              '--- Request ${i + 1} (ID: ${rawRequest['avrr_id']}) ---',
-            );
-            debugPrint('Raw questionnaire: ${rawRequest['questionnaire']}');
-            debugPrint('Raw goals: ${rawRequest['goals']}');
-            debugPrint(
-              'Raw additional_needs: ${rawRequest['additional_needs']}',
-            );
-          }
-          debugPrint('=== END PARSING ===');
 
           return allRequests.map<Map<String, dynamic>>((request) {
             final Map<String, dynamic> processedRequest = {
@@ -166,7 +179,6 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
                   (a) => Map<String, dynamic>.from(a),
                 ),
               ),
-              // inside your mapping for processedRequest in _fetchRequests()
               'solutions': List<Map<String, dynamic>>.from(
                 (request['solutions'] ?? []).map(
                   (s) => Map<String, dynamic>.from(s),
@@ -183,21 +195,6 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
               'Additional needs count: ${processedRequest['additional_needs'].length}',
             );
 
-            if (processedRequest['questionnaire'].isNotEmpty) {
-              debugPrint(
-                'Questionnaire content: ${processedRequest['questionnaire']}',
-              );
-            }
-            if (processedRequest['goals'].isNotEmpty) {
-              debugPrint('Goals content: ${processedRequest['goals']}');
-            }
-            if (processedRequest['additional_needs'].isNotEmpty) {
-              debugPrint(
-                'Additional needs content: ${processedRequest['additional_needs']}',
-              );
-            }
-            debugPrint('=== END PROCESSED REQUEST ===');
-
             return processedRequest;
           }).toList();
         }
@@ -209,423 +206,63 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
     return [];
   }
 
-  Future<List<Map<String, dynamic>>> _fetchAdvisors(String query) async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-          'https://ss.singledeck.in/api/v1/adviser/advisor-profile-details/',
-        ),
-      );
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['status'] == 'success') {
-          List<dynamic> advisors = data['data'];
-          if (query.isNotEmpty) {
-            advisors = advisors
-                .where(
-                  (advisor) => advisor['advr_full_name']
-                      .toString()
-                      .toLowerCase()
-                      .contains(query.toLowerCase()),
-                )
-                .toList();
-          }
-          return advisors.map((e) => Map<String, dynamic>.from(e)).toList();
-        }
-      }
-      return [];
-    } catch (e) {
-      return [];
+  // Enhanced filtering with search functionality
+  List<Map<String, dynamic>> _filterRequests(
+    List<Map<String, dynamic>> requests,
+  ) {
+    List<Map<String, dynamic>> filtered = requests;
+
+    // Filter by status
+    if (selectedTopNav != 'All') {
+      filtered = filtered.where((req) {
+        final status = _getStatusText(req['avrr_status'] ?? '');
+        return status == selectedTopNav;
+      }).toList();
     }
+
+    // Filter by search query
+    if (searchQuery.isNotEmpty) {
+      filtered = filtered.where((req) {
+        final title = (req['avrr_title'] ?? '').toString().toLowerCase();
+        final id = (req['avrr_id'] ?? '').toString().toLowerCase();
+        final desc = (req['avrr_desc'] ?? '').toString().toLowerCase();
+        final query = searchQuery.toLowerCase();
+
+        return title.contains(query) ||
+            id.contains(query) ||
+            desc.contains(query);
+      }).toList();
+    }
+
+    return filtered;
   }
 
-  Future<bool> _submitRequest({
-    required int clntId,
-    required String title,
-    required String desc,
-    int? advrId,
-    required String assignType,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('https://ss.singledeck.in/api/v1/adviser/advisor-request/'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'clnt_id': clntId,
-          'title': title,
-          'advr_id': advrId,
-          'desc': desc,
-          'assigntype': assignType,
-        }),
-      );
-      debugPrint('Response submitRequest: ${response.body}');
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      debugPrint('Error submitting request: $e');
-      return false;
-    }
-  }
-
-  void _showAddRequestBottomSheet() {
-    String requestName = '';
-    String description = '';
-    bool advisorKnown = false;
-    Map<String, dynamic>? selectedAdvisor;
-    String searchQuery = '';
-    List<Map<String, dynamic>> filteredAdvisors = [];
-    bool isLoadingAdvisors = false;
-    bool showAdvisorList = false;
-    final TextEditingController searchController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        final modalContext = ctx;
-        return GestureDetector(
-          onTap: () => Navigator.of(modalContext).pop(),
+  Widget _buildShimmerLoading(double width, double height) {
+    return ListView.builder(
+      padding: EdgeInsets.symmetric(
+        horizontal: scaleWidth(20),
+        vertical: scaleHeight(20),
+      ),
+      itemCount: 5,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: Colors.grey[300]!,
+          highlightColor: Colors.grey[100]!,
           child: Container(
-            color: Colors.transparent,
-            child: GestureDetector(
-              onTap: () {},
-              child: DraggableScrollableSheet(
-                initialChildSize: 0.7,
-                minChildSize: 0.4,
-                maxChildSize: 0.9,
-                builder: (_, controller) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 24,
-                    ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      controller: controller,
-                      child: StatefulBuilder(
-                        builder: (context, setModalState) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Center(
-                                child: Container(
-                                  width: 40,
-                                  height: 5,
-                                  margin: const EdgeInsets.only(bottom: 20),
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                              ),
-                              const Text(
-                                'Add Advisor Request',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E3A5F),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              TextField(
-                                decoration: InputDecoration(
-                                  labelText: 'Request Name',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                onChanged: (val) => requestName = val,
-                              ),
-                              const SizedBox(height: 16),
-                              const Text(
-                                'Do you know the advisor?',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              Row(
-                                children: [
-                                  Radio<bool>(
-                                    value: true,
-                                    groupValue: advisorKnown,
-                                    onChanged: (val) {
-                                      setModalState(() {
-                                        advisorKnown = true;
-                                        showAdvisorList = false;
-                                        selectedAdvisor = null;
-                                        searchController.clear();
-                                      });
-                                    },
-                                  ),
-                                  const Text('Yes'),
-                                  Radio<bool>(
-                                    value: false,
-                                    groupValue: advisorKnown,
-                                    onChanged: (val) {
-                                      setModalState(() {
-                                        advisorKnown = false;
-                                        selectedAdvisor = null;
-                                        searchQuery = '';
-                                        filteredAdvisors = [];
-                                        showAdvisorList = false;
-                                        searchController.clear();
-                                      });
-                                    },
-                                  ),
-                                  const Text('No'),
-                                ],
-                              ),
-                              if (advisorKnown) ...[
-                                const SizedBox(height: 16),
-                                TextField(
-                                  controller: searchController,
-                                  decoration: InputDecoration(
-                                    labelText: selectedAdvisor != null
-                                        ? 'Selected: ${selectedAdvisor!['advr_full_name']}'
-                                        : 'Search and Select Advisor',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    prefixIcon: const Icon(Icons.search),
-                                    suffixIcon: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (isLoadingAdvisors)
-                                          const SizedBox(
-                                            width: 20,
-                                            height: 20,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                        if (selectedAdvisor != null)
-                                          IconButton(
-                                            icon: const Icon(Icons.clear),
-                                            onPressed: () {
-                                              setModalState(() {
-                                                selectedAdvisor = null;
-                                                searchController.clear();
-                                                showAdvisorList = false;
-                                              });
-                                            },
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  readOnly: selectedAdvisor != null,
-                                  onTap: selectedAdvisor != null
-                                      ? null
-                                      : () {
-                                          setModalState(() {
-                                            showAdvisorList = true;
-                                          });
-                                        },
-                                  onChanged: selectedAdvisor != null
-                                      ? null
-                                      : (val) {
-                                          setModalState(() {
-                                            searchQuery = val;
-                                            isLoadingAdvisors = true;
-                                            showAdvisorList = true;
-                                          });
-                                          _fetchAdvisors(val).then((advisors) {
-                                            setModalState(() {
-                                              filteredAdvisors = advisors;
-                                              isLoadingAdvisors = false;
-                                            });
-                                          });
-                                        },
-                                ),
-                                const SizedBox(height: 8),
-                                if (showAdvisorList &&
-                                    filteredAdvisors.isNotEmpty &&
-                                    !isLoadingAdvisors &&
-                                    selectedAdvisor == null)
-                                  Container(
-                                    height: 150,
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: ListView.builder(
-                                      itemCount: filteredAdvisors.length,
-                                      itemBuilder: (context, index) {
-                                        final advisor = filteredAdvisors[index];
-                                        return ListTile(
-                                          dense: true,
-                                          title: Text(
-                                            advisor['advr_full_name'],
-                                          ),
-                                          subtitle: Text(
-                                            'ID: ${advisor['advr_uid']} • ${advisor['advr_expertise_area']}',
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          leading: CircleAvatar(
-                                            backgroundColor:
-                                                Colors.grey.shade300,
-                                            child: Text(
-                                              advisor['advr_full_name'][0]
-                                                  .toUpperCase(),
-                                              style: const TextStyle(
-                                                color: Colors.black,
-                                              ),
-                                            ),
-                                          ),
-                                          onTap: () {
-                                            setModalState(() {
-                                              selectedAdvisor = advisor;
-                                              searchController.text =
-                                                  advisor['advr_full_name'];
-                                              showAdvisorList = false;
-                                            });
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                              ],
-                              TextField(
-                                decoration: InputDecoration(
-                                  labelText: 'Description',
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                ),
-                                maxLines: 3,
-                                onChanged: (val) => description = val,
-                              ),
-                              const SizedBox(height: 16),
-                              Center(
-                                child: GestureDetector(
-                                  onTap: () async {
-                                    if (requestName.trim().isEmpty) {
-                                      ScaffoldMessenger.of(
-                                        modalContext,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please enter request name',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                    if (advisorKnown &&
-                                        selectedAdvisor == null) {
-                                      ScaffoldMessenger.of(
-                                        modalContext,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please select an advisor',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                    final clientId =
-                                        await _getClientIdFromPrefs();
-                                    if (clientId == null || clientId == 0) {
-                                      ScaffoldMessenger.of(
-                                        modalContext,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Client ID not found. Please login again.',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                      return;
-                                    }
-                                    final success = await _submitRequest(
-                                      clntId: clientId,
-                                      title: requestName,
-                                      desc: description,
-                                      advrId: advisorKnown
-                                          ? selectedAdvisor!['advr_id']
-                                          : null,
-                                      assignType: advisorKnown
-                                          ? 'DIRCT'
-                                          : 'ADMIN',
-                                    );
-                                    if (success) {
-                                      Navigator.of(modalContext).pop();
-                                      _refreshRequests();
-                                      Future.delayed(
-                                        const Duration(milliseconds: 350),
-                                        () {
-                                          if (mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Request submitted successfully!',
-                                                ),
-                                                backgroundColor: Colors.green,
-                                              ),
-                                            );
-                                          }
-                                        },
-                                      );
-                                    } else {
-                                      ScaffoldMessenger.of(
-                                        modalContext,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Failed to submit request. Please try again.',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 32,
-                                      vertical: 14,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF169060),
-                                          Color(0xFF1E3A5F),
-                                        ],
-                                        begin: Alignment.centerLeft,
-                                        end: Alignment.centerRight,
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Text(
-                                      'Submit',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  );
-                },
-              ),
+            margin: EdgeInsets.only(bottom: scaleHeight(20)),
+            padding: EdgeInsets.all(scaleWidth(20)),
+            height: scaleHeight(110),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  spreadRadius: 1,
+                  blurRadius: 8,
+                  offset: Offset(0, 3),
+                ),
+              ],
             ),
           ),
         );
@@ -633,317 +270,430 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen> {
     );
   }
 
-  Widget _buildShimmerLoading(double width, double height) {
-    return Column(
-      children: [
-        // Card Shimmer
-        Expanded(
-          child: ListView.builder(
-            padding: EdgeInsets.symmetric(
-              horizontal: width * 0.04,
-              vertical: height * 0.02,
-            ),
-            itemCount: 4, // Show 4 placeholder cards
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: EdgeInsets.only(bottom: height * 0.02),
-                child: Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Color(0xFF169060).withOpacity(0.5),
-                  child: Card(
-                    elevation: 4,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: width * 0.04,
-                        vertical: height * 0.01,
-                      ),
-                      child: Row(
-                        children: [
-                          // Leading Avatar
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          SizedBox(width: width * 0.04),
-                          // Title and Subtitle
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: width * 0.6,
-                                  height: scaleFont(width * 0.045),
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  width: width * 0.4,
-                                  height: scaleFont(width * 0.035),
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(height: 2),
-                                Container(
-                                  width: width * 0.3,
-                                  height: scaleFont(width * 0.033),
-                                  color: Colors.white,
-                                ),
-                              ],
-                            ),
-                          ),
-                          // Trailing Status Badge
-                          Container(
-                            width: 80,
-                            height: scaleFont(14) + 12,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final height = MediaQuery.of(context).size.height;
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: EdgeInsets.only(
-            top: MediaQuery.of(context).padding.top + 16,
-            left: 16,
-            right: 16,
-            bottom: 24,
-          ),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF169060), Color(0xFF175B58), Color(0xFF19214F)],
-              stops: [0.3, 0.7, 1],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(24),
-              bottomRight: Radius.circular(24),
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // Background Gradient (33% from top)
+          Container(
+            height: height * 0.33,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [primaryColor, secondaryColor],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(scaleWidth(20)),
+                bottomRight: Radius.circular(scaleWidth(20)),
+              ),
             ),
           ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Center(
-                child: Text(
-                  'Advisor Requests',
-                  style: TextStyle(
+
+          // Content with SafeArea
+          SafeArea(
+            child: Column(
+              children: [
+                // Header Section
+                _buildHeader(),
+
+                // Top Navigation (Status filters)
+                _buildTopNavigation(),
+
+                // Search Bar
+                _buildSearchBar(),
+
+                SizedBox(height: scaleHeight(10)),
+
+                // Cards List
+                Expanded(child: _buildRequestsList()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: EdgeInsets.all(scaleWidth(20)),
+      child: Row(
+        children: [
+          Expanded(child: Container()),
+
+          Text(
+            'Advisor Requests',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: scaleFont(24),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: () async {
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AddAdvisorRequestScreen(),
+                    ),
+                  );
+                  if (result == true) {
+                    _refreshRequests();
+                  }
+                },
+                child: Container(
+                  padding: EdgeInsets.all(scaleWidth(8)),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.add,
                     color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.5,
+                    size: scaleFont(20),
                   ),
                 ),
               ),
-              Positioned(
-                right: 0,
-                child: IconButton(
-                  icon: const Icon(Icons.add, size: 28, color: Colors.white),
-                  onPressed: () async {
-                    final result = await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddAdvisorRequestScreen(),
-                      ),
-                    );
-                    if (result == true) {
-                      _refreshRequests(); // Refresh list if submission was successful
-                    }
-                  },
-                ),
-              ),
-            ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopNavigation() {
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: scaleWidth(20),
+        vertical: scaleHeight(10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildNavItem('Pending', selectedTopNav == 'Pending'),
+          _buildNavItem('Approved', selectedTopNav == 'Approved'),
+          _buildNavItem('Rejected', selectedTopNav == 'Rejected'),
+          _buildNavItem('All', selectedTopNav == 'All'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(String title, bool isSelected) {
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          selectedTopNav = title;
+        });
+      },
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: scaleWidth(16),
+          vertical: scaleHeight(8),
+        ),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? Colors.white.withOpacity(0.2)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: scaleFont(14),
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
-        Expanded(
-          child: RefreshIndicator(
-            color: const Color(0xFF169060),
-            onRefresh: () async {
-              _refreshRequests();
-              await _requestsFuture;
-            },
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _requestsFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return _buildShimmerLoading(width, height);
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return ListView(
+      ),
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Container(
+      margin: EdgeInsets.symmetric(
+        horizontal: scaleWidth(20),
+        vertical: scaleHeight(10),
+      ),
+      padding: EdgeInsets.symmetric(horizontal: scaleWidth(15)),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TextField(
+        controller: searchController,
+        style: TextStyle(color: Colors.white, fontSize: scaleFont(16)),
+        decoration: InputDecoration(
+          hintText: 'Search Requests',
+          hintStyle: TextStyle(color: Colors.white70, fontSize: scaleFont(16)),
+          prefixIcon: Icon(
+            Icons.search,
+            color: Colors.white70,
+            size: scaleFont(20),
+          ),
+          suffixIcon: searchQuery.isNotEmpty
+              ? GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      searchQuery = '';
+                      searchController.clear();
+                    });
+                  },
+                  child: Icon(
+                    Icons.clear,
+                    color: Colors.white70,
+                    size: scaleFont(20),
+                  ),
+                )
+              : null,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(vertical: scaleHeight(15)),
+        ),
+        onChanged: (value) {
+          setState(() {
+            searchQuery = value;
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildRequestsList() {
+    return RefreshIndicator(
+      color: primaryColor,
+      onRefresh: () async {
+        _refreshRequests();
+        await _requestsFuture;
+      },
+      child: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _requestsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return _buildShimmerLoading(
+              MediaQuery.of(context).size.width,
+              MediaQuery.of(context).size.height,
+            );
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return ListView(
+              children: [
+                SizedBox(height: scaleHeight(100)),
+                Center(
+                  child: Column(
                     children: [
-                      SizedBox(height: height * 0.3),
-                      const Center(
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.assignment_outlined,
-                              size: 80,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No requests found.',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Pull down to refresh or tap + to add a request.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
+                      Icon(
+                        Icons.assignment_outlined,
+                        size: scaleFont(80),
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: scaleHeight(16)),
+                      Text(
+                        'No requests found.',
+                        style: TextStyle(
+                          fontSize: scaleFont(18),
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      SizedBox(height: scaleHeight(8)),
+                      Text(
+                        'Pull down to refresh or tap + to add a request.',
+                        style: TextStyle(
+                          fontSize: scaleFont(14),
+                          color: Colors.grey,
                         ),
                       ),
                     ],
-                  );
-                }
-                final requests = snapshot.data!;
-                return ListView.builder(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: width * 0.04,
-                    vertical: height * 0.02,
                   ),
-                  itemCount: requests.length,
-                  itemBuilder: (context, index) {
-                    final req = requests[index];
-                    final status = (req['avrr_status'] ?? '')
-                        .toString()
-                        .toUpperCase();
-                    return Card(
-                      elevation: 4,
-                      margin: EdgeInsets.only(bottom: height * 0.02),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                ),
+              ],
+            );
+          }
+
+          final allRequests = snapshot.data!;
+          final filteredRequests = _filterRequests(allRequests);
+
+          if (filteredRequests.isEmpty) {
+            return ListView(
+              children: [
+                SizedBox(height: scaleHeight(100)),
+                Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        searchQuery.isNotEmpty
+                            ? Icons.search_off
+                            : Icons.filter_list_off,
+                        size: scaleFont(80),
+                        color: Colors.grey,
                       ),
-                      child: ListTile(
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: width * 0.04,
-                          vertical: height * 0.01,
+                      SizedBox(height: scaleHeight(16)),
+                      Text(
+                        searchQuery.isNotEmpty
+                            ? 'No requests match your search.'
+                            : 'No requests found for this filter.',
+                        style: TextStyle(
+                          fontSize: scaleFont(18),
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
                         ),
-                        leading: CircleAvatar(
-                          backgroundColor: _statusColor(
-                            _getStatusColorType(status),
-                          ),
-                          child: Icon(
-                            _getStatusIcon(status),
-                            color: Colors.white,
-                          ),
-                        ),
-                        title: Text(
-                          req['avrr_title'] ?? '--',
+                      ),
+                      if (searchQuery.isNotEmpty) ...[
+                        SizedBox(height: scaleHeight(8)),
+                        Text(
+                          'Try adjusting your search terms.',
                           style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E3A5F),
-                            fontSize: scaleFont(width * 0.045),
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 4),
-                            Text(
-                              'Request ID: ${req['avrr_id']}',
-                              style: TextStyle(
-                                color: const Color(0xFF666666),
-                                fontSize: scaleFont(width * 0.035),
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Date: ${_formatRequestDate(req['avrr_rdate'])}',
-                              style: TextStyle(
-                                color: const Color(0xFF666666),
-                                fontSize: scaleFont(width * 0.033),
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _statusColor(
-                              _getStatusColorType(status),
-                            ).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _getStatusText(status),
-                            style: TextStyle(
-                              color: _statusColor(_getStatusColorType(status)),
-                              fontWeight: FontWeight.bold,
-                            ),
+                            fontSize: scaleFont(14),
+                            color: Colors.grey,
                           ),
                         ),
-                        onTap: () async {
-                          print('=== DEBUGGING REQUEST DATA ===');
-                          print('Request ID: ${req['avrr_id']}');
-                          print(
-                            'Questionnaire length: ${(req['questionnaire'] ?? []).length}',
-                          );
-                          print('Goals length: ${(req['goals'] ?? []).length}');
-                          print(
-                            'Additional needs length: ${(req['additional_needs'] ?? []).length}',
-                          );
-                          print('Full request data: ${req.toString()}');
-                          print('=== END DEBUG ===');
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }
 
-                          final result = await Navigator.pushNamed(
-                            context,
-                            '/advisor_request_detail',
-                            arguments: req,
-                          );
+          return ListView.builder(
+            padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
+            itemCount: filteredRequests.length,
+            itemBuilder: (context, index) {
+              final req = filteredRequests[index];
+              return _buildRequestCard(req);
+            },
+          );
+        },
+      ),
+    );
+  }
 
-                          debugPrint(
-                            'User returned from detail screen - Refreshing requests...',
-                          );
-                          _refreshRequests();
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+  Widget _buildRequestCard(Map<String, dynamic> req) {
+    final status = (req['avrr_status'] ?? '').toString().toUpperCase();
+    final statusText = _getStatusText(status);
+    final statusColor = _statusColor(_getStatusColorType(status));
+
+    return Container(
+      margin: EdgeInsets.only(bottom: scaleHeight(20)),
+      padding: EdgeInsets.all(scaleWidth(20)),
+      height: scaleHeight(130), // Increased height for better layout
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.15),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: Offset(0, 3),
           ),
+        ],
+      ),
+      child: InkWell(
+        onTap: () async {
+          print('=== DEBUGGING REQUEST DATA ===');
+          print('Request ID: ${req['avrr_id']}');
+          print('Full request data: ${req.toString()}');
+          print('=== END DEBUG ===');
+
+          final result = await Navigator.pushNamed(
+            context,
+            '/advisor_request_detail',
+            arguments: req,
+          );
+
+          debugPrint(
+            'User returned from detail screen - Refreshing requests...',
+          );
+          _refreshRequests();
+        },
+        child: Row(
+          children: [
+            // Status Icon
+            Container(
+              width: scaleWidth(50),
+              height: scaleWidth(50),
+              decoration: BoxDecoration(
+                color: statusColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                _getStatusIcon(status),
+                color: Colors.white,
+                size: scaleFont(25),
+              ),
+            ),
+            SizedBox(width: scaleWidth(15)),
+
+            // Request Details
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    req['avrr_title'] ?? '--',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: scaleFont(16),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: scaleHeight(4)),
+                  Text(
+                    'ID: ${req['avrr_id']}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: scaleFont(13),
+                    ),
+                  ),
+                  SizedBox(height: scaleHeight(2)),
+                  Text(
+                    _formatRequestDate(req['avrr_rdate']),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: scaleFont(12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Status Badge
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: scaleWidth(10),
+                vertical: scaleHeight(4),
+              ),
+              decoration: BoxDecoration(
+                color: statusColor.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                statusText,
+                style: TextStyle(
+                  color: statusColor,
+                  fontSize: scaleFont(12),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

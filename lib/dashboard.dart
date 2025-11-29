@@ -8,7 +8,14 @@ import 'package:shimmer/shimmer.dart';
 import 'color_constants.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final String? accessToken;
+  final VoidCallback? onUnauthorized;
+
+  const DashboardScreen({
+    super.key,
+    this.accessToken,
+    this.onUnauthorized,
+  });
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -23,7 +30,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _dashboardData = _fetchDashboardData();
   }
 
-  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
@@ -36,27 +42,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return height * MediaQuery.of(context).size.height / 812;
   }
 
+  Future<void> _logout(String message) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          backgroundColor: AppColors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false,
+      );
+    }
+  }
+
   Future<Map<String, dynamic>> _fetchDashboardData() async {
     final prefs = await SharedPreferences.getInstance();
-    final clntId = prefs.getInt('client_id') ?? 17;
+    final clntId = prefs.getInt('client_id');
+    final token = prefs.getString('access_token');
+    
+    print(token);
 
-    final url =
-        'https://ds.singledeck.in/api/v1/adviser/client-dashboard-counts/?clnt_id=$clntId';
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final jsonData = json.decode(response.body);
-      if (jsonData['status'] == 'success') {
-        return jsonData['data'];
-      }
+    if (token == null || token.isEmpty || clntId == null) {
+      _logout('Session expired. Please login again.');
+      return _fallbackData();
     }
-    // Fallback data if API fails
-    return {
-      "total_requests": 3,
-      "completed_requests": 1,
-      "pending_requests": 2,
-    };
+
+    final url = 'https://ds.singledeck.in/api/v1/adviser/client-dashboard-counts/?clnt_id=$clntId';
+    debugPrint('📡 Fetching from: $url');
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'sessiontoken': token,
+          'sessiontype': 'CLNT',
+        },
+      ).timeout(const Duration(seconds: 60));
+
+      debugPrint('Status: ${response.statusCode}');
+
+      if (response.statusCode == 401) {
+        _logout('Session expired. Please login again.');
+        return _fallbackData();
+      }
+
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        debugPrint('✅ Body parsed: $jsonData');
+        
+        if (jsonData['status'] == 'success' && jsonData['data'] != null) {
+          return {
+            'total_requests': jsonData['data']['total_requests'] ?? 0,
+            'completed_requests': jsonData['data']['completed_requests'] ?? 0,
+            'pending_requests': jsonData['data']['pending_requests'] ?? 0,
+          };
+        }
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error: $e');
+      debugPrint('Stack: $stackTrace');
+    }
+
+    return _fallbackData();
   }
+
+  Map<String, dynamic> _fallbackData() => {
+        "total_requests": 0,
+        "completed_requests": 0,
+        "pending_requests": 0,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -64,41 +125,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.lightGray,
       body: Stack(
         children: [
-          // Background Gradient (35% from top)
           Container(
             height: height * 0.35,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(scaleWidth(30)),
                 bottomRight: Radius.circular(scaleWidth(30)),
               ),
             ),
           ),
-          
+
           SafeArea(
             child: Column(
               children: [
-                // Header
                 _buildHeader(),
-                
                 SizedBox(height: scaleHeight(20)),
-                
-                // Content
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Dashboard Cards
                         FutureBuilder<Map<String, dynamic>>(
                           future: _dashboardData,
                           builder: (context, snapshot) {
@@ -106,15 +157,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               return _buildShimmerCards();
                             }
 
-                            final data = snapshot.data ?? {
-                              "total_requests": 3,
-                              "completed_requests": 1,
-                              "pending_requests": 2,
-                            };
-
-                            final int total = data['total_requests'] ?? 3;
-                            final int completed = data['completed_requests'] ?? 1;
-                            final int pending = data['pending_requests'] ?? 2;
+                            final data = snapshot.data ?? _fallbackData();
+                            final int total = data['total_requests'] ?? 0;
+                            final int completed = data['completed_requests'] ?? 0;
+                            final int pending = data['pending_requests'] ?? 0;
 
                             return Column(
                               children: [
@@ -144,7 +190,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'Dashboard',
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: Colors.white,
+          color: AppColors.lightGray,
           fontSize: scaleFont(24),
           fontWeight: FontWeight.bold,
         ),
@@ -160,11 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Total',
             count: total,
             icon: Icons.assignment,
-            gradient: LinearGradient(
-              colors: [Colors.blue[600]!, Colors.blue[400]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.lightGray.withOpacity(0.8), // ✅ Lighter opacity
           ),
         ),
         SizedBox(width: scaleWidth(12)),
@@ -173,11 +215,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Completed',
             count: completed,
             icon: Icons.check_circle,
-            gradient: LinearGradient(
-              colors: [Colors.green[600]!, Colors.green[400]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.green.withOpacity(0.8), // ✅ Lighter opacity
           ),
         ),
         SizedBox(width: scaleWidth(12)),
@@ -186,11 +224,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             title: 'Pending',
             count: pending,
             icon: Icons.pending_actions,
-            gradient: LinearGradient(
-              colors: [Colors.orange[600]!, Colors.orange[400]!],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.blue.withOpacity(0.8), // ✅ Lighter opacity
           ),
         ),
       ],
@@ -201,33 +235,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required String title,
     required int count,
     required IconData icon,
-    required Gradient gradient,
+    required Color color,
   }) {
     return Container(
       padding: EdgeInsets.all(scaleWidth(16)),
       decoration: BoxDecoration(
-        gradient: gradient,
+        color: color,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: color.withOpacity(0.2), // ✅ Lighter shadow
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: Colors.white,
-            size: scaleFont(32),
-          ),
+          Icon(icon, color: AppColors.primaryDark, size: scaleFont(32)),
           SizedBox(height: scaleHeight(8)),
           Text(
             '$count',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.primaryDark,
               fontSize: scaleFont(24),
               fontWeight: FontWeight.bold,
             ),
@@ -236,7 +266,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: AppColors.primaryDark.withOpacity(0.8),
               fontSize: scaleFont(12),
               fontWeight: FontWeight.w500,
             ),
@@ -251,36 +281,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       padding: EdgeInsets.all(scaleWidth(24)),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: textWhite,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: AppColors.primaryDark.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 8,
-            offset: Offset(0, 3),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Chart Title
           Row(
             children: [
               Container(
                 padding: EdgeInsets.all(scaleWidth(8)),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [primaryColor, secondaryColor],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
+                  color: AppColors.primaryDark,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   Icons.pie_chart,
-                  color: Colors.white,
+                  color: AppColors.lightGray,
                   size: scaleFont(20),
                 ),
               ),
@@ -290,68 +315,63 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: TextStyle(
                   fontSize: scaleFont(18),
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: AppColors.primaryDark,
                 ),
               ),
             ],
           ),
-          
           SizedBox(height: scaleHeight(20)),
-          
-          // Summary Chips
+          // ✅ Equal width summary chips using Expanded
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildSummaryChip('Total', total, Colors.blue[600]!),
-              _buildSummaryChip('Completed', completed, Colors.green[600]!),
-              _buildSummaryChip('Pending', pending, Colors.orange[600]!),
+              Expanded(child: _buildSummaryChip('Total', total, AppColors.yellow)),
+              SizedBox(width: scaleWidth(8)),
+              Expanded(child: _buildSummaryChip('Completed', completed, AppColors.green)),
+              SizedBox(width: scaleWidth(8)),
+              Expanded(child: _buildSummaryChip('Pending', pending, AppColors.blue)),
             ],
           ),
-          
           SizedBox(height: scaleHeight(24)),
-          
-          // Pie Chart or Empty State
-          total > 0 
-              ? _buildPieChart(completed, pending)
-              : _buildEmptyState(),
+          total > 0 ? _buildPieChart(completed, pending) : _buildEmptyState(),
         ],
       ),
     );
   }
 
   Widget _buildSummaryChip(String label, int value, Color color) {
-    final total = value;
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: scaleWidth(12),
+        horizontal: scaleWidth(8), // ✅ Reduced padding for better fit
         vertical: scaleHeight(8),
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.15), // ✅ Lighter background
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withOpacity(0.4), width: 1.5), // ✅ Lighter border
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center, // ✅ Center align
             children: [
               Container(
                 width: scaleWidth(8),
                 height: scaleWidth(8),
-                decoration: BoxDecoration(
-                  color: color,
-                  shape: BoxShape.circle,
-                ),
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
               ),
-              SizedBox(width: scaleWidth(6)),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: scaleFont(12),
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
+              SizedBox(width: scaleWidth(4)),
+              Flexible( // ✅ Make text flexible
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: scaleFont(11),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryDark,
+                  ),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -372,8 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildPieChart(int completed, int pending) {
     final total = completed + pending;
-    
-    return Container(
+    return SizedBox(
       height: scaleHeight(200),
       child: PieChart(
         PieChartData(
@@ -383,26 +402,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           sections: [
             if (completed > 0)
               PieChartSectionData(
-                color: Colors.green[600]!,
+                color: AppColors.green,
                 value: completed.toDouble(),
                 title: '${((completed / total) * 100).toStringAsFixed(1)}%',
                 radius: scaleWidth(40),
                 titleStyle: TextStyle(
                   fontSize: scaleFont(12),
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textWhite,
                 ),
               ),
             if (pending > 0)
               PieChartSectionData(
-                color: Colors.orange[600]!,
+                color: AppColors.blue,
                 value: pending.toDouble(),
                 title: '${((pending / total) * 100).toStringAsFixed(1)}%',
                 radius: scaleWidth(40),
                 titleStyle: TextStyle(
                   fontSize: scaleFont(12),
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: textWhite,
                 ),
               ),
           ],
@@ -412,32 +431,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Container(
+    return SizedBox(
       height: scaleHeight(200),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.pie_chart_outline,
-            size: scaleFont(60),
-            color: Colors.grey[400],
-          ),
+          Icon(Icons.pie_chart_outline, size: scaleFont(60), color: textGray),
           SizedBox(height: scaleHeight(16)),
           Text(
             'No data available',
             style: TextStyle(
               fontSize: scaleFont(16),
-              color: Colors.grey[600],
+              color: textGray,
               fontWeight: FontWeight.w500,
             ),
           ),
           SizedBox(height: scaleHeight(8)),
           Text(
             'Create your first advisor request',
-            style: TextStyle(
-              fontSize: scaleFont(14),
-              color: Colors.grey[500],
-            ),
+            style: TextStyle(fontSize: scaleFont(14), color: AppColors.textMuted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -465,12 +477,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildShimmerCard() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      baseColor: AppColors.lightGray,
+      highlightColor: textWhite,
       child: Container(
         padding: EdgeInsets.all(scaleWidth(16)),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: textWhite,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -479,7 +491,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: scaleWidth(32),
               height: scaleWidth(32),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: textWhite,
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
@@ -488,7 +500,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: scaleWidth(40),
               height: scaleHeight(24),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: textWhite,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -497,7 +509,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: scaleWidth(60),
               height: scaleHeight(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: textWhite,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
@@ -509,12 +521,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildShimmerChart() {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
+      baseColor: AppColors.lightGray,
+      highlightColor: textWhite,
       child: Container(
         padding: EdgeInsets.all(scaleWidth(24)),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: textWhite,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -526,7 +538,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   width: scaleWidth(28),
                   height: scaleWidth(28),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: textWhite,
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -535,7 +547,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   width: scaleWidth(120),
                   height: scaleHeight(18),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: textWhite,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -555,8 +567,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Container(
                 width: scaleWidth(150),
                 height: scaleWidth(150),
-                decoration: BoxDecoration(
-                  color: Colors.white,
+                decoration: const BoxDecoration(
+                  color: textWhite,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -574,7 +586,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         vertical: scaleHeight(8),
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: textWhite,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -583,7 +595,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: scaleWidth(60),
             height: scaleHeight(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: textWhite,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -592,7 +604,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: scaleWidth(30),
             height: scaleHeight(18),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: textWhite,
               borderRadius: BorderRadius.circular(4),
             ),
           ),

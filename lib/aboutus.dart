@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-
 import 'color_constants.dart';
 
 class AboutUsScreen extends StatelessWidget {
   const AboutUsScreen({super.key});
 
-  // Responsive scaling functions
   double scaleFont(double size, BuildContext context) {
     return size * MediaQuery.of(context).size.width / 375;
   }
-
   double scaleWidth(double width, BuildContext context) {
     return width * MediaQuery.of(context).size.width / 375;
   }
-
   double scaleHeight(double height, BuildContext context) {
     return height * MediaQuery.of(context).size.height / 812;
   }
@@ -24,75 +20,43 @@ class AboutUsScreen extends StatelessWidget {
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.lightGray,
       body: Stack(
         children: [
-          // Background Gradient (35% from top)
+          // Solid Primary Dark Background (Top 30%)
           Container(
             height: height * 0.30,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(scaleWidth(20, context)),
                 bottomRight: Radius.circular(scaleWidth(20, context)),
               ),
             ),
           ),
-
-          // Content
           SafeArea(
             child: Column(
               children: [
-                // Header Section
                 _buildHeader(context),
-
                 SizedBox(height: scaleHeight(10, context)),
-
-                // Content Section
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: scaleWidth(20, context),
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: scaleWidth(20, context)),
                     child: Column(
                       children: [
-                        // Main About Card
                         _buildMainAboutCard(context),
-
                         SizedBox(height: scaleHeight(10, context)),
-
-                        // Mission Card
                         _buildMissionCard(context),
-
                         SizedBox(height: scaleHeight(10, context)),
-
-                        // Features Card
                         _buildFeaturesCard(context),
-
                         SizedBox(height: scaleHeight(10, context)),
-
-                        // Contact Card
                         _buildContactCard(context),
-
                         SizedBox(height: scaleHeight(10, context)),
-
-                        // Company Info Card
                         _buildCompanyInfoCard(context),
-
                         SizedBox(height: scaleHeight(10, context)),
-
-                        // Social Media Card
                         _buildSocialMediaCard(context),
-
                         SizedBox(height: scaleHeight(20, context)),
-
-                        // Footer
                         _buildFooter(context),
-
                         SizedBox(height: scaleHeight(30, context)),
                       ],
                     ),
@@ -113,7 +77,7 @@ class AboutUsScreen extends StatelessWidget {
         'About Us',
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: Colors.white,
+          color: AppColors.lightGray,
           fontSize: scaleFont(24, context),
           fontWeight: FontWeight.bold,
         ),
@@ -124,30 +88,23 @@ class AboutUsScreen extends StatelessWidget {
   Widget _buildCard({required Widget child, required BuildContext context}) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryColor, secondaryColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: textWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.primaryDark.withOpacity(0.13),
+          width: 1.5,
         ),
-        borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: AppColors.primaryDark.withOpacity(0.05),
             spreadRadius: 1,
-            blurRadius: 12,
-            offset: Offset(0, 4),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
-      padding: EdgeInsets.all(scaleWidth(3, context)), // Gradient border width
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        padding: EdgeInsets.all(scaleWidth(20, context)),
-        child: child,
-      ),
+      padding: EdgeInsets.all(scaleWidth(20, context)),
+      child: child,
     );
   }
 
@@ -160,40 +117,31 @@ class AboutUsScreen extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(scaleWidth(20, context)),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark,
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.account_balance,
               size: scaleFont(48, context),
-              color: Colors.white,
+              color: AppColors.lightGray,
             ),
           ),
-
           SizedBox(height: scaleHeight(20, context)),
-
-          // Title
           Text(
             'Financial Advisor',
             style: TextStyle(
               fontSize: scaleFont(24, context),
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: AppColors.primaryDark,
             ),
           ),
-
           SizedBox(height: scaleHeight(12, context)),
-
           Text(
             'Empowering your financial journey with expert advice and smart technology.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: scaleFont(16, context),
-              color: Colors.grey[600],
+              color: textGray,
               height: 1.5,
             ),
           ),
@@ -209,14 +157,12 @@ class AboutUsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('Our Mission', Icons.flag, context),
-
           SizedBox(height: scaleHeight(16, context)),
-
           Text(
             'To connect users with certified financial advisors and provide a seamless, secure, and insightful experience for all your financial planning needs.',
             style: TextStyle(
               fontSize: scaleFont(15, context),
-              color: Colors.grey[600],
+              color: textGray,
               height: 1.5,
             ),
           ),
@@ -232,9 +178,7 @@ class AboutUsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('Key Features', Icons.star, context),
-
           SizedBox(height: scaleHeight(16, context)),
-
           _buildFeatureItem(
             'Expert Advisors',
             'Connect with certified financial professionals',
@@ -243,7 +187,7 @@ class AboutUsScreen extends StatelessWidget {
           ),
           _buildFeatureItem(
             'Secure Platform',
-            'Bank-level security for your financial data',
+            '256 bit encryption for your total peace of mind',
             Icons.security,
             context,
           ),
@@ -271,9 +215,7 @@ class AboutUsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('Contact Us', Icons.contact_phone, context),
-
           SizedBox(height: scaleHeight(16, context)),
-
           _buildContactItem(
             'Email',
             'support@financialadvisor.com',
@@ -305,9 +247,7 @@ class AboutUsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('Company Information', Icons.business, context),
-
           SizedBox(height: scaleHeight(16, context)),
-
           _buildInfoRow('Founded', '2017', context),
           _buildInfoRow('Headquarters', 'Brisbane, Australia', context),
           _buildInfoRow('Team Size', '8+ Professionals', context),
@@ -325,9 +265,7 @@ class AboutUsScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildSectionHeader('Follow Us', Icons.share, context),
-
           SizedBox(height: scaleHeight(16, context)),
-
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -362,24 +300,18 @@ class AboutUsScreen extends StatelessWidget {
         Container(
           padding: EdgeInsets.all(scaleWidth(8, context)),
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: AppColors.primaryDark,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: Colors.white, size: scaleFont(20, context)),
+          child: Icon(icon, color: AppColors.lightGray, size: scaleFont(20, context)),
         ),
-
         SizedBox(width: scaleWidth(12, context)),
-
         Text(
           title,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: scaleFont(18, context),
-            color: Colors.black87,
+            color: AppColors.primaryDark,
           ),
         ),
       ],
@@ -400,25 +332,16 @@ class AboutUsScreen extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(scaleWidth(8, context)),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  primaryColor.withOpacity(0.1),
-                  secondaryColor.withOpacity(0.1),
-                ],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark.withOpacity(0.08),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(
               icon,
-              color: primaryColor,
+              color: AppColors.primaryDark,
               size: scaleFont(20, context),
             ),
           ),
-
           SizedBox(width: scaleWidth(12, context)),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,7 +351,7 @@ class AboutUsScreen extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: scaleFont(16, context),
-                    color: Colors.black87,
+                    color: AppColors.primaryDark,
                   ),
                 ),
                 SizedBox(height: scaleHeight(4, context)),
@@ -436,7 +359,7 @@ class AboutUsScreen extends StatelessWidget {
                   description,
                   style: TextStyle(
                     fontSize: scaleFont(14, context),
-                    color: Colors.grey[600],
+                    color: textGray,
                     height: 1.4,
                   ),
                 ),
@@ -462,25 +385,16 @@ class AboutUsScreen extends StatelessWidget {
           Container(
             padding: EdgeInsets.all(scaleWidth(6, context)),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  primaryColor.withOpacity(0.1),
-                  secondaryColor.withOpacity(0.1),
-                ],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark.withOpacity(0.08),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(
               icon,
-              color: primaryColor,
+              color: AppColors.primaryDark,
               size: scaleFont(18, context),
             ),
           ),
-
           SizedBox(width: scaleWidth(12, context)),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,7 +404,7 @@ class AboutUsScreen extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: scaleFont(14, context),
-                    color: Colors.black87,
+                    color: AppColors.primaryDark,
                   ),
                 ),
                 SizedBox(height: scaleHeight(2, context)),
@@ -498,7 +412,7 @@ class AboutUsScreen extends StatelessWidget {
                   value,
                   style: TextStyle(
                     fontSize: scaleFont(14, context),
-                    color: Colors.grey[600],
+                    color: textGray,
                   ),
                 ),
               ],
@@ -520,7 +434,7 @@ class AboutUsScreen extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w500,
               fontSize: scaleFont(14, context),
-              color: Colors.grey[600],
+              color: textGray,
             ),
           ),
           Text(
@@ -528,7 +442,7 @@ class AboutUsScreen extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: scaleFont(14, context),
-              color: Colors.black87,
+              color: AppColors.primaryDark,
             ),
           ),
         ],
@@ -551,27 +465,20 @@ class AboutUsScreen extends StatelessWidget {
           horizontal: scaleWidth(8, context),
         ),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              primaryColor.withOpacity(0.1),
-              secondaryColor.withOpacity(0.1),
-            ],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
+          color: AppColors.primaryDark.withOpacity(0.07),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: primaryColor, size: scaleFont(20, context)),
+            Icon(icon, color: AppColors.primaryDark, size: scaleFont(20, context)),
             SizedBox(height: scaleHeight(4, context)),
             Text(
               name,
               style: TextStyle(
                 fontSize: scaleFont(10, context),
                 fontWeight: FontWeight.w500,
-                color: Colors.black87,
+                color: AppColors.primaryDark,
               ),
               textAlign: TextAlign.center,
               maxLines: 1,
@@ -588,7 +495,7 @@ class AboutUsScreen extends StatelessWidget {
       '© 2025 Financial Advisor App. All rights reserved.',
       style: TextStyle(
         fontSize: scaleFont(12, context),
-        color: Colors.grey[500],
+        color: textGray,
       ),
       textAlign: TextAlign.center,
     );

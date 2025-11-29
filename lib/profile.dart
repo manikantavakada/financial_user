@@ -18,13 +18,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isLoading = true;
   String? errorMessage;
 
+  final String ImgbaseUrl = 'https://ds.singledeck.in';
+
   @override
   void initState() {
     super.initState();
     _fetchClientDetails();
   }
 
-  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
@@ -46,8 +47,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       final prefs = await SharedPreferences.getInstance();
       final clientId = prefs.getInt('client_id');
+      final token = prefs.getString('access_token');
 
-      if (clientId == null) {
+      if (clientId == null || token == null) {
         setState(() {
           errorMessage = 'Please login again';
           isLoading = false;
@@ -59,10 +61,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Uri.parse(
           'https://ds.singledeck.in/api/v1/clients/get-client-details/?clnt_id=$clientId',
         ),
+        headers: {
+          'sessiontoken': token,
+          'sessiontype': 'CLNT',
+        },
       );
+
+      debugPrint('Profile API Status: ${response.statusCode}');
+
+      if (response.statusCode == 401) {
+        _logout();
+        return;
+      }
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print(data);
         if (data['status'] == 'success' &&
             data['data'] != null &&
             data['data'].isNotEmpty) {
@@ -83,6 +97,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
       }
     } catch (e) {
+      debugPrint('Profile fetch error: $e');
       setState(() {
         errorMessage = 'Network error occurred';
         isLoading = false;
@@ -91,27 +106,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('You have been logged out successfully.'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        '/login',
+        (route) => false,
+      );
+    }
+  }
+
+  Future<void> _showLogoutDialog() async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: AppColors.primaryDark,
             borderRadius: BorderRadius.circular(16),
           ),
-          padding: EdgeInsets.all(scaleWidth(20)),
+          padding: EdgeInsets.all(scaleWidth(24)),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(
+                Icons.logout,
+                color: AppColors.lightGray,
+                size: scaleFont(48),
+              ),
+              SizedBox(height: scaleHeight(16)),
               Text(
                 'Log Out',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.lightGray,
                   fontSize: scaleFont(20),
                   fontWeight: FontWeight.bold,
                 ),
@@ -120,20 +157,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(
                 'Are you sure you want to log out?',
                 style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: scaleFont(16),
+                  color: AppColors.lightGray.withOpacity(0.8),
+                  fontSize: scaleFont(14),
                 ),
                 textAlign: TextAlign.center,
               ),
-              SizedBox(height: scaleHeight(20)),
+              SizedBox(height: scaleHeight(24)),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   Expanded(
                     child: TextButton(
                       onPressed: () => Navigator.pop(context, false),
                       style: TextButton.styleFrom(
-                        backgroundColor: Colors.white,
+                        backgroundColor: AppColors.lightGray,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -144,7 +180,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         'Cancel',
                         style: TextStyle(
-                          color: const Color(0xFF6B7280),
+                          color: AppColors.primaryDark,
                           fontSize: scaleFont(14),
                           fontWeight: FontWeight.w600,
                         ),
@@ -156,12 +192,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context, true),
                       style: TextButton.styleFrom(
-                        backgroundColor: Colors.transparent,
+                        backgroundColor: AppColors.primaryDark,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(
-                            color: Colors.white.withOpacity(0.3),
-                          ),
                         ),
                         padding: EdgeInsets.symmetric(
                           vertical: scaleHeight(12),
@@ -170,7 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Text(
                         'Log Out',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: textWhite,
                           fontSize: scaleFont(14),
                           fontWeight: FontWeight.w600,
                         ),
@@ -186,9 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirm == true) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.clear();
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+      _logout();
     }
   }
 
@@ -205,27 +236,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.lightGray,
       body: isLoading
           ? _buildLoadingScreen(width, height)
           : errorMessage != null
-          ? _buildErrorWidget()
-          : _buildProfileContent(width, height),
+              ? _buildErrorWidget()
+              : _buildProfileContent(width, height),
     );
   }
 
   Widget _buildLoadingScreen(double width, double height) {
     return Stack(
       children: [
-        // Background Gradient (35% from top)
         Container(
           height: height * 0.35,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: AppColors.primaryDark,
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(scaleWidth(20)),
               bottomRight: Radius.circular(scaleWidth(20)),
@@ -236,7 +262,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SafeArea(
           child: Column(
             children: [
-              // Header with shimmer
               Container(
                 padding: EdgeInsets.all(scaleWidth(20)),
                 child: Column(
@@ -244,22 +269,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       'Profile',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.lightGray,
                         fontSize: scaleFont(24),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     SizedBox(height: scaleHeight(20)),
                     Shimmer.fromColors(
-                      baseColor: Colors.white.withOpacity(0.3),
-                      highlightColor: Colors.white.withOpacity(0.1),
+                      baseColor: AppColors.lightGray.withOpacity(0.3),
+                      highlightColor: AppColors.lightGray.withOpacity(0.1),
                       child: Column(
                         children: [
                           Container(
                             width: scaleWidth(90),
                             height: scaleWidth(90),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
+                            decoration: const BoxDecoration(
+                              color: textWhite,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -268,7 +293,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: width * 0.6,
                             height: scaleHeight(22),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: textWhite,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -277,7 +302,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: width * 0.5,
                             height: scaleHeight(14),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: textWhite,
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -290,7 +315,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               SizedBox(height: scaleHeight(20)),
 
-              // Cards shimmer
               Expanded(
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
@@ -298,13 +322,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     itemCount: 4,
                     itemBuilder: (context, index) {
                       return Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
+                        baseColor: AppColors.lightGray,
+                        highlightColor: textWhite,
                         child: Container(
                           margin: EdgeInsets.only(bottom: scaleHeight(16)),
                           height: scaleHeight(120),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: textWhite,
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
@@ -328,11 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Container(
           height: height * 0.35,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: AppColors.primaryDark,
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(scaleWidth(30)),
               bottomRight: Radius.circular(scaleWidth(30)),
@@ -347,7 +367,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Text(
                   'Profile',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.lightGray,
                     fontSize: scaleFont(24),
                     fontWeight: FontWeight.bold,
                   ),
@@ -361,14 +381,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Icon(
                         Icons.error_outline,
                         size: scaleFont(80),
-                        color: Colors.grey[400],
+                        color: textGray,
                       ),
                       SizedBox(height: scaleHeight(16)),
                       Text(
                         errorMessage!,
                         style: TextStyle(
                           fontSize: scaleFont(18),
-                          color: Colors.grey,
+                          color: textGray,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -381,17 +401,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             vertical: scaleHeight(12),
                           ),
                           decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [primaryColor, secondaryColor],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ),
+                            color: AppColors.primaryDark,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             'Retry',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.lightGray,
                               fontSize: scaleFont(16),
                               fontWeight: FontWeight.w600,
                             ),
@@ -412,15 +428,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileContent(double width, double height) {
     return Stack(
       children: [
-        // Background Gradient (35% from top)
         Container(
           height: height * 0.35,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
+            color: AppColors.primaryDark,
             borderRadius: BorderRadius.only(
               bottomLeft: Radius.circular(scaleWidth(30)),
               bottomRight: Radius.circular(scaleWidth(30)),
@@ -431,12 +442,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         SafeArea(
           child: Column(
             children: [
-              // Header with profile info
               _buildProfileHeader(),
+              SizedBox(height: scaleHeight(5)),
 
-              SizedBox(height: scaleHeight(20)),
-
-              // Profile cards
               Expanded(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
@@ -460,13 +468,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _buildInfoRow(
                             'Marital Status',
-                            clientData?['clnt_marital_status'] ??
-                                'Not provided',
+                            clientData?['clnt_marital_status'] ?? 'Not provided',
                           ),
                         ],
                       ),
 
-                      SizedBox(height: scaleHeight(10)),
+                      SizedBox(height: scaleHeight(16)),
 
                       _buildInfoCard(
                         'Contact Information',
@@ -488,7 +495,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
 
-                      SizedBox(height: scaleHeight(10)),
+                      SizedBox(height: scaleHeight(16)),
 
                       _buildInfoCard(
                         'Professional Information',
@@ -500,8 +507,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           _buildInfoRow(
                             'Employment Status',
-                            clientData?['clnt_employment_status'] ??
-                                'Not provided',
+                            clientData?['clnt_employment_status'] ?? 'Not provided',
                           ),
                           _buildInfoRow(
                             'TFN',
@@ -510,7 +516,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
 
-                      SizedBox(height: scaleHeight(10)),
+                      SizedBox(height: scaleHeight(16)),
 
                       _buildInfoCard(
                         'Account Information',
@@ -529,7 +535,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             _formatDate(clientData?['clnt_rdate']),
                           ),
                           _buildInfoRow(
-                            'Last Updated',
+                            'Last Reviewed',
                             _formatDate(clientData?['clnt_ludate']),
                           ),
                         ],
@@ -552,7 +558,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: EdgeInsets.all(scaleWidth(20)),
       child: Column(
         children: [
-          // Title and Edit button
           Row(
             children: [
               Expanded(
@@ -560,7 +565,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   'Profile',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.lightGray,
                     fontSize: scaleFont(24),
                     fontWeight: FontWeight.bold,
                   ),
@@ -571,12 +576,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Container(
                   padding: EdgeInsets.all(scaleWidth(8)),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: AppColors.lightGray.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.edit_outlined,
-                    color: Colors.white,
+                    color: AppColors.lightGray,
                     size: scaleFont(20),
                   ),
                 ),
@@ -586,37 +591,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           SizedBox(height: scaleHeight(10)),
 
-          // Profile Avatar
           Stack(
             children: [
               Container(
                 padding: EdgeInsets.all(scaleWidth(3)),
-                decoration: BoxDecoration(
-                  color: Colors.white,
+                decoration: const BoxDecoration(
+                  color: textWhite,
                   shape: BoxShape.circle,
                 ),
                 child: CircleAvatar(
-                  radius: scaleWidth(45),
-                  backgroundColor: Colors.white,
-                  child: clientData?['clnt_image'] != null
-                      ? ClipOval(
-                          child: Image.network(
-                            clientData!['clnt_image'],
-                            width: scaleWidth(90),
-                            height: scaleWidth(90),
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Text(
-                          (clientData?['clnt_full_name'] ?? 'U')[0]
-                              .toUpperCase(),
-                          style: TextStyle(
-                            fontSize: scaleFont(32),
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
+  radius: scaleWidth(45),
+  backgroundColor: textWhite,
+  child: clientData?['clnt_image'] != null && clientData!['clnt_image'].isNotEmpty
+      ? ClipOval(
+          child: Image.network(
+            '$ImgbaseUrl${clientData!['clnt_image']}',  // ← Prepend base URL
+            width: scaleWidth(90),
+            height: scaleWidth(90),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback to initial if image fails to load
+              return Text(
+                (clientData?['clnt_full_name'] ?? 'U')[0].toUpperCase(),
+                style: TextStyle(
+                  fontSize: scaleFont(32),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryDark,
                 ),
+              );
+            },
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Center(
+                child: CircularProgressIndicator(
+                  value: loadingProgress.expectedTotalBytes != null
+                      ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                      : null,
+                  color: AppColors.primaryDark,
+                ),
+              );
+            },
+          ),
+        )
+      : Text(
+          (clientData?['clnt_full_name'] ?? 'U')[0].toUpperCase(),
+          style: TextStyle(
+            fontSize: scaleFont(32),
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryDark,
+          ),
+        ),
+),
+
               ),
               Positioned(
                 bottom: 2,
@@ -626,10 +653,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   height: scaleWidth(20),
                   decoration: BoxDecoration(
                     color: clientData?['clnt_status'] == 'AC'
-                        ? Colors.green
-                        : Colors.grey,
+                        ? AppColors.green
+                        : textGray,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(color: textWhite, width: 2),
                   ),
                 ),
               ),
@@ -638,11 +665,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           SizedBox(height: scaleHeight(15)),
 
-          // Name and Email
           Text(
             clientData?['clnt_full_name'] ?? 'Unknown',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.lightGray,
               fontSize: scaleFont(22),
               fontWeight: FontWeight.bold,
               letterSpacing: 0.5,
@@ -655,16 +681,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Text(
             clientData?['clnt_email'] ?? 'No email',
             style: TextStyle(
-              color: Colors.white70,
+              color: AppColors.lightGray.withOpacity(0.8),
               fontSize: scaleFont(14),
               fontWeight: FontWeight.w400,
             ),
             textAlign: TextAlign.center,
           ),
 
-          SizedBox(height: scaleHeight(15)),
+          SizedBox(height: scaleHeight(25)),
 
-          // ID and Logout buttons
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -674,14 +699,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   vertical: scaleHeight(6),
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: AppColors.primaryDark.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppColors.primaryDark.withOpacity(0.3),
+                  ),
                 ),
                 child: Text(
                   'ID: ${clientData?['clnt_uid'] ?? '--'}',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.primaryDark,
                     fontWeight: FontWeight.w600,
                     fontSize: scaleFont(12),
                   ),
@@ -691,30 +718,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
               SizedBox(width: scaleWidth(12)),
 
               GestureDetector(
-                onTap: _logout,
+                onTap: _showLogoutDialog,
                 child: Container(
                   padding: EdgeInsets.symmetric(
-                    horizontal: scaleWidth(12),
+                    horizontal: scaleWidth(6),
                     vertical: scaleHeight(6),
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: AppColors.primaryDark.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.3)),
+                    border: Border.all(
+                      color: AppColors.primaryDark.withOpacity(0.5),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.logout,
-                        color: Colors.white,
+                        color: AppColors.textOnLight,
                         size: scaleFont(16),
                       ),
                       SizedBox(width: scaleWidth(6)),
                       Text(
                         'Log Out',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textOnLight,
                           fontWeight: FontWeight.w600,
                           fontSize: scaleFont(12),
                         ),
@@ -733,60 +762,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildInfoCard(String title, IconData icon, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryColor, secondaryColor],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
+        color: textWhite,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: AppColors.primaryDark.withOpacity(0.08),
             spreadRadius: 1,
             blurRadius: 12,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      padding: EdgeInsets.all(scaleWidth(3)), // Gradient border width
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        padding: EdgeInsets.all(scaleWidth(20)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(scaleWidth(8)),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [primaryColor, secondaryColor],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: Colors.white, size: scaleFont(20)),
+      padding: EdgeInsets.all(scaleWidth(20)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(scaleWidth(8)),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                SizedBox(width: scaleWidth(12)),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: scaleFont(18),
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                child: Icon(
+                  icon,
+                  color: AppColors.lightGray,
+                  size: scaleFont(20),
                 ),
-              ],
-            ),
-            SizedBox(height: scaleHeight(16)),
-            ...children,
-          ],
-        ),
+              ),
+              SizedBox(width: scaleWidth(12)),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: scaleFont(18),
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryDark,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: scaleHeight(16)),
+          ...children,
+        ],
       ),
     );
   }
@@ -804,7 +822,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontSize: scaleFont(14),
                 fontWeight: FontWeight.w500,
-                color: Colors.grey[600],
+                color: textGray,
               ),
             ),
           ),
@@ -815,7 +833,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               style: TextStyle(
                 fontSize: scaleFont(14),
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: AppColors.primaryDark,
               ),
             ),
           ),
@@ -824,7 +842,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Utility methods remain the same
   String _formatDate(String? dateString) {
     if (dateString == null) return 'Not provided';
     try {
@@ -840,8 +857,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return gender.toLowerCase() == 'male'
         ? 'Male'
         : gender.toLowerCase() == 'female'
-        ? 'Female'
-        : gender;
+            ? 'Female'
+            : gender;
   }
 
   String _formatStatus(String? status) {

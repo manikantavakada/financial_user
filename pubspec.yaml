@@ -47,6 +47,13 @@ dependencies:
   shimmer: ^3.0.0
   intl_phone_field: ^3.2.0
   flutter_html: ^3.0.0
+  connectivity_plus: ^7.0.0
+  flutter_pdfview: ^1.4.3
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.1
+  syncfusion_flutter_pdfviewer: ^31.2.15
+  device_info_plus: ^12.1.0
+  share_plus: ^12.0.1
   
 
 dev_dependencies:

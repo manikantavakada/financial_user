@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io'; // For SocketException
 import 'package:financial_user/color_constants.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -13,7 +15,10 @@ import 'bg.dart';
 // RSA encryption function (unchanged)
 const String serverPublicKeyPem = """
 -----BEGIN PUBLIC KEY-----
-\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC9ITaISnuVTdhWW0008bVKqwMF\nEkxBB4dA0svzCuQMmRXCZ9EFP8PL4VVqsju3lNdcpgRa8MzwCPRJ932+M7d6WNPz\nfHoF/nK85//sVQdHCj0rF5PDfvTGOnDeYvN/cdI/cnqQCsSb5ThqO/lr5w+hPuPq\nri1okYc3yE2cWaYHSQIDAQAB\n
+MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC9ITaISnuVTdhWW0008bVKqwMF
+EkxBB4dA0svzCuQMmRXCZ9EFP8PL4VVqsju3lNdcpgRa8MzwCPRJ932+M7d6WNPz
+fHoF/nK85//sVQdHCj0rF5PDfvTGOnDeYvN/cdI/cnqQCsSb5ThqO/lr5w+hPuPq
+ri1okYc3yE2cWaYHSQIDAQAB
 -----END PUBLIC KEY-----
 """;
 
@@ -73,15 +78,38 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     ));
 
     _animationController.forward();
+
+    // Mask token for logs
+
+
+
+    // Auto-login if already logged in
+    _checkLoginStatus();
   }
+
+  // Check if user is already logged in
+  Future<void> _checkLoginStatus() async {
+  final prefs = await SharedPreferences.getInstance();
+  final accessToken = (prefs.getString('access_token') ?? '').trim();
+  final clientId = prefs.getInt('client_id') ?? -1;
+  debugPrint('Auto-login check: token present=${accessToken.isNotEmpty}, tokenPreview=${_maskToken(accessToken)}, client_id=$clientId');
+
+  if (accessToken.isNotEmpty) {
+    if (mounted) {
+      Navigator.pushReplacementNamed(context, '/home');
+    }
+  }
+}
+
 
   @override
   void dispose() {
     _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
@@ -115,89 +143,153 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> handleLogin() async {
-    if (!validateForm()) return;
+  if (!validateForm()) return;
 
-    setState(() {
-      _isLoading = true;
-      _error = '';
-    });
+  setState(() {
+    _isLoading = true;
+    _error = '';
+  });
 
-    String encryptedPassword = encryptPasswordRSA(
-      _passwordController.text.trim(),
-      serverPublicKeyPem,
-    );
+  final String username = _phoneNumber.isNotEmpty
+      ? _phoneNumber
+      : _emailController.text.trim();
 
-    final url = Uri.parse(
-      'https://ds.singledeck.in/api/v1/clients/client-login/',
-    );
-    const String fcmToken = 'staticfcm1234567890';
+  // Encrypt password
+  final rawPassword = _passwordController.text.trim();
+  final String encryptedPassword = encryptPasswordRSA(rawPassword, serverPublicKeyPem);
 
-    final body = {
-      "username": _phoneNumber.isNotEmpty
-          ? _phoneNumber
-          : _emailController.text.trim(),
-      "password": encryptedPassword,
-      "fcm_token": fcmToken,
-    };
+  // Log key debug info (DO NOT log raw password)
+  debugPrint('--- LOGIN ATTEMPT ---');
+  debugPrint('username: $username');
+  debugPrint('encryptedPassword (len): ${encryptedPassword.length}');
+  debugPrint('encryptedPassword preview: ${encryptedPassword.length > 10 ? encryptedPassword.substring(0,6) + "..." : encryptedPassword}');
 
+  final url = Uri.parse('https://ds.singledeck.in/api/v1/clients/client-login/');
+  const String fcmToken = 'staticfcm1234567890';
+
+  final body = {
+    "username": username,
+    "password": encryptedPassword,
+    "fcm_token": fcmToken,
+  };
+
+  // Show request payload (without raw password)
+  debugPrint('POST $url');
+  debugPrint('Request body keys: ${body.keys.toList()}');
+  debugPrint('Request body (json): ${jsonEncode(body)}');
+
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(body),
+    ).timeout(const Duration(seconds: 60));
+
+    debugPrint('--- LOGIN RESPONSE ---');
+    debugPrint('Status code: ${response.statusCode}');
+    debugPrint('Response body: ${response.body}');
+
+    // Defensive JSON parse
+    Map<String, dynamic> jsonResponse;
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
+      jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('Failed to parse JSON: $e');
+      _showError('Invalid response from server');
+      return;
+    }
+
+    if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
+      // Defensive extraction
+      final session = jsonResponse['session_token'];
+      final userData = jsonResponse['user'] as Map<String, dynamic>?;
+
+      if (session == null || userData == null) {
+        debugPrint('Login success but missing session or user in response');
+        _showError('Login response missing data');
+        return;
+      }
+
+      String accessToken = '';
+      String refreshToken = '';
+
+      try {
+        accessToken = (session['access'] as String).trim();
+        refreshToken = (session['refresh'] as String).trim();
+      } catch (_) {
+        debugPrint('session token fields missing or unexpected structure: $session');
+        _showError('Invalid session token from server');
+        return;
+      }
+
+      // Defensive: avoid double "Bearer " if backend returns it already
+      if (accessToken.toLowerCase().startsWith('bearer ')) {
+        accessToken = accessToken.substring(7).trim();
+        debugPrint('Trimmed leading "Bearer " from access token');
+      }
+
+      // Save to prefs
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('access_token', accessToken);
+      await prefs.setString('refresh_token', refreshToken);
+      await prefs.setString('user_data', jsonEncode(userData));
+      final int clientId = (userData['clnt_id'] is int)
+          ? userData['clnt_id']
+          : int.tryParse('${userData['clnt_id']}') ?? 0;
+      await prefs.setInt('client_id', clientId);
+      await prefs.setBool('is_logged_in', true);
+
+      // Log what's saved (masked)
+      debugPrint('Saved to prefs: access_token=${_maskToken(accessToken)}, refresh_token=${_maskToken(refreshToken)}, client_id=$clientId');
+      final decoded = _decodeJwtPayload(accessToken);
+      debugPrint('access token payload (decoded): $decoded');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(jsonResponse['message'] ?? 'Welcome back!'),
+          backgroundColor: Color(0xFF4CAF50),
+          duration: Duration(seconds: 2),
+        ),
       );
 
-      if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        String accessToken = json['session_token']?['access'] ?? '';
-        String refreshToken = json['session_token']?['refresh'] ?? '';
-        Map<String, dynamic> userMap = json['user'] ?? {};
-
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        prefs.setString('access_token', accessToken);
-        prefs.setString('refresh_token', refreshToken);
-        prefs.setString('user', jsonEncode(userMap));
-        prefs.setInt('client_id', json['user']?['clnt_id'] ?? 0);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Login successful!'),
-            backgroundColor: Color(0xFF4CAF50),
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        String errorMsg = 'Login failed';
-        try {
-          final json = jsonDecode(response.body);
-          errorMsg = json['message']?.toString() ?? response.body;
-        } catch (_) {
-          errorMsg = response.body;
-        }
-
-        if (mounted) {
-          setState(() {
-            _error = errorMsg;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(errorMsg),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() {
-        _error = "Network error: $e";
-      });
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      // If API sends structured error
+      final errorMsg = jsonResponse['message'] ??
+          jsonResponse['error'] ??
+          jsonResponse['detail'] ??
+          'Invalid phone number or password';
+      debugPrint('Login failed: $errorMsg');
+      _showError(errorMsg);
     }
-    setState(() {
-      _isLoading = false;
-    });
+  } on TimeoutException {
+    debugPrint('Login request timed out');
+    _showError('No internet connection or server is slow');
+  } on SocketException catch (e) {
+    debugPrint('SocketException during login: $e');
+    _showError('No internet connection');
+  } on FormatException catch (e) {
+    debugPrint('FormatException during login: $e');
+    _showError('Invalid response from server');
+  } catch (e, st) {
+    debugPrint('Unexpected login error: $e');
+    debugPrint('Stack: $st');
+    _showError('Something went wrong. Please try again');
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
+
+
+  void _showError(String message) {
+    setState(() => _error = message);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override
@@ -207,33 +299,25 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     return Scaffold(
       body: Stack(
         children: [
-          // Curved Header with Gradient
+          // Curved Header
           ClipPath(
             clipper: HeaderClipper(),
             child: Container(
               height: size.height * 0.45,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [primaryColor, secondaryColor],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-              ),
+              color: AppColors.primaryDark,
             ),
           ),
 
-          // Content
+          // Main Content
           SafeArea(
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // Header Content
                   Container(
                     height: size.height * 0.3,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Logo with Animation
                         FadeTransition(
                           opacity: _fadeAnimation,
                           child: Container(
@@ -259,7 +343,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         ),
                         SizedBox(height: scaleHeight(20)),
                         
-                        // Welcome Text with Animation
                         FadeTransition(
                           opacity: _fadeAnimation,
                           child: Column(
@@ -289,7 +372,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
                   ),
 
-                  // Login Form Card with Animation
                   SlideTransition(
                     position: _slideAnimation,
                     child: FadeTransition(
@@ -314,13 +396,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                           children: [
                             if (_error.isNotEmpty) _buildErrorCard(),
 
-                            // Phone Field
                             Text(
                               'Phone Number',
                               style: TextStyle(
                                 fontSize: scaleFont(16),
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey[800],
+                                color: AppColors.primaryDark,
                               ),
                             ),
                             SizedBox(height: scaleHeight(8)),
@@ -355,7 +436,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   ),
                                   focusedBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: primaryColor, width: 2),
+                                    borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
                                   ),
                                   counterText: '',
                                   contentPadding: EdgeInsets.symmetric(
@@ -363,7 +444,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     vertical: scaleHeight(16),
                                   ),
                                 ),
-                                initialCountryCode: 'AU',
+                                initialCountryCode: 'IN',
                                 showCountryFlag: true,
                                 showDropdownIcon: false,
                                 keyboardType: TextInputType.number,
@@ -381,28 +462,21 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                             if (_emailError.isNotEmpty)
                               Padding(
-                                padding: EdgeInsets.only(
-                                  top: scaleHeight(8),
-                                  left: scaleWidth(4),
-                                ),
+                                padding: EdgeInsets.only(top: scaleHeight(8), left: scaleWidth(4)),
                                 child: Text(
                                   _emailError,
-                                  style: TextStyle(
-                                    fontSize: scaleFont(12),
-                                    color: Colors.red[600],
-                                  ),
+                                  style: TextStyle(fontSize: scaleFont(12), color: Colors.red[600]),
                                 ),
                               ),
 
                             SizedBox(height: scaleHeight(24)),
 
-                            // Password Field
                             Text(
                               'Password',
                               style: TextStyle(
                                 fontSize: scaleFont(16),
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey[800],
+                                color: AppColors.primaryDark,
                               ),
                             ),
                             SizedBox(height: scaleHeight(8)),
@@ -422,76 +496,47 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                 controller: _passwordController,
                                 obscureText: !_showPassword,
                                 keyboardType: TextInputType.number,
-                                style: TextStyle(
-                                  fontSize: scaleFont(14),
-                                  color: Colors.black87,
-                                ),
+                                style: TextStyle(fontSize: scaleFont(14), color: Colors.black87),
                                 decoration: InputDecoration(
                                   hintText: 'Enter your password',
-                                  hintStyle: TextStyle(
-                                    fontSize: scaleFont(14),
-                                    color: Colors.grey.shade400,
-                                  ),
+                                  hintStyle: TextStyle(fontSize: scaleFont(14), color: Colors.grey.shade400),
                                   filled: true,
                                   fillColor: Colors.grey[50],
                                   suffixIcon: GestureDetector(
-                                    onTap: () => setState(
-                                      () => _showPassword = !_showPassword,
-                                    ),
+                                    onTap: () => setState(() => _showPassword = !_showPassword),
                                     child: Container(
                                       margin: EdgeInsets.all(scaleWidth(8)),
                                       padding: EdgeInsets.all(scaleWidth(8)),
                                       decoration: BoxDecoration(
-                                        color: primaryColor.withOpacity(0.1),
+                                        color: AppColors.primaryDark.withOpacity(0.1),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: Icon(
-                                        _showPassword
-                                            ? Icons.visibility
-                                            : Icons.visibility_off,
+                                        _showPassword ? Icons.visibility : Icons.visibility_off,
                                         size: scaleFont(18),
-                                        color: primaryColor,
+                                        color: AppColors.primaryDark,
                                       ),
                                     ),
                                   ),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide.none,
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: BorderSide(color: primaryColor, width: 2),
-                                  ),
-                                  contentPadding: EdgeInsets.symmetric(
-                                    horizontal: scaleWidth(16),
-                                    vertical: scaleHeight(16),
-                                  ),
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: AppColors.primaryDark, width: 2)),
+                                  contentPadding: EdgeInsets.symmetric(horizontal: scaleWidth(16), vertical: scaleHeight(16)),
                                 ),
                               ),
                             ),
 
                             if (_passwordError.isNotEmpty)
                               Padding(
-                                padding: EdgeInsets.only(
-                                  top: scaleHeight(8),
-                                  left: scaleWidth(4),
-                                ),
+                                padding: EdgeInsets.only(top: scaleHeight(8), left: scaleWidth(4)),
                                 child: Text(
                                   _passwordError,
-                                  style: TextStyle(
-                                    fontSize: scaleFont(12),
-                                    color: Colors.red[600],
-                                  ),
+                                  style: TextStyle(fontSize: scaleFont(12), color: Colors.red[600]),
                                 ),
                               ),
 
                             SizedBox(height: scaleHeight(20)),
 
-                            // Remember me and Forgot password
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -501,20 +546,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                       scale: 0.8,
                                       child: Checkbox(
                                         value: _rememberMe,
-                                        onChanged: (value) =>
-                                            setState(() => _rememberMe = value!),
-                                        activeColor: primaryColor,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
+                                        onChanged: (value) => setState(() => _rememberMe = value!),
+                                        activeColor: AppColors.primaryDark,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                                       ),
                                     ),
                                     Text(
                                       'Remember me',
-                                      style: TextStyle(
-                                        fontSize: scaleFont(14),
-                                        color: Colors.grey[600],
-                                      ),
+                                      style: TextStyle(fontSize: scaleFont(14), color: Colors.grey[600]),
                                     ),
                                   ],
                                 ),
@@ -524,7 +563,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                     'Forgot password?',
                                     style: TextStyle(
                                       fontSize: scaleFont(14),
-                                      color: primaryColor,
+                                      color: AppColors.primaryDark,
                                       fontWeight: FontWeight.w500,
                                     ),
                                   ),
@@ -534,20 +573,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                             SizedBox(height: scaleHeight(32)),
 
-                            // Login Button
                             Container(
                               width: double.infinity,
                               height: scaleHeight(56),
                               decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [primaryColor, secondaryColor],
-                                  begin: Alignment.centerLeft,
-                                  end: Alignment.centerRight,
-                                ),
+                                color: AppColors.primaryDark,
                                 borderRadius: BorderRadius.circular(16),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: primaryColor.withOpacity(0.4),
+                                    color: AppColors.primaryDark.withOpacity(0.4),
                                     blurRadius: 15,
                                     offset: Offset(0, 8),
                                   ),
@@ -564,10 +598,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                         ? SizedBox(
                                             width: scaleWidth(24),
                                             height: scaleWidth(24),
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white,
-                                              strokeWidth: 3,
-                                            ),
+                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3),
                                           )
                                         : Text(
                                             'Sign In',
@@ -590,7 +621,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
                   SizedBox(height: scaleHeight(24)),
 
-                  // Register link with Animation
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Row(
@@ -598,19 +628,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       children: [
                         Text(
                           "Don't have an account? ",
-                          style: TextStyle(
-                            fontSize: scaleFont(14),
-                            color: Colors.grey[600],
-                          ),
+                          style: TextStyle(fontSize: scaleFont(14), color: Colors.grey[600]),
                         ),
                         GestureDetector(
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/register'),
+                          onTap: () => Navigator.pushNamed(context, '/register'),
                           child: Text(
                             'Create Account',
                             style: TextStyle(
                               fontSize: scaleFont(14),
-                              color: primaryColor,
+                              color: AppColors.primaryDark,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -645,10 +671,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           Expanded(
             child: Text(
               _error,
-              style: TextStyle(
-                fontSize: scaleFont(14),
-                color: Colors.red[700],
-              ),
+              style: TextStyle(fontSize: scaleFont(14), color: Colors.red[700]),
             ),
           ),
         ],
@@ -657,32 +680,59 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 }
 
-// Custom clipper for curved header
+String _maskToken(String? token) {
+  if (token == null || token.isEmpty) return '<null>';
+  final t = token.trim();
+  if (!t.contains('.')) return t.length <= 10 ? t : '${t.substring(0,6)}...${t.substring(t.length-4)}';
+  // JWT-like mask: show start and end
+  final parts = t.split('.');
+  final start = parts[0].length > 6 ? parts[0].substring(0, 6) : parts[0];
+  final end = parts[2].length > 6 ? parts[2].substring(parts[2].length - 6) : parts[2];
+  return '$start...$end';
+}
+
+// Decode JWT payload (safe debug)
+Map<String, dynamic>? _decodeJwtPayload(String token) {
+  try {
+    final parts = token.split('.');
+    if (parts.length != 3) return null;
+    String normalize(String str) {
+      var output = str.replaceAll('-', '+').replaceAll('_', '/');
+      switch (output.length % 4) {
+        case 0:
+          break;
+        case 2:
+          output += '==';
+          break;
+        case 3:
+          output += '=';
+          break;
+        default:
+          return '';
+      }
+      return output;
+    }
+
+    final payload = base64Url.decode(normalize(parts[1]));
+    final payloadMap = json.decode(utf8.decode(payload)) as Map<String, dynamic>;
+    return payloadMap;
+  } catch (e) {
+    debugPrint('JWT decode failed: $e');
+    return null;
+  }
+}
+
 class HeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     Path path = Path();
     path.lineTo(0, size.height - 80);
-    
-    // Create a smooth curve
     var firstControlPoint = Offset(size.width / 4, size.height);
     var firstEndPoint = Offset(size.width / 2, size.height - 30);
-    path.quadraticBezierTo(
-      firstControlPoint.dx,
-      firstControlPoint.dy,
-      firstEndPoint.dx,
-      firstEndPoint.dy,
-    );
-    
+    path.quadraticBezierTo(firstControlPoint.dx, firstControlPoint.dy, firstEndPoint.dx, firstEndPoint.dy);
     var secondControlPoint = Offset(size.width * 3 / 4, size.height - 80);
     var secondEndPoint = Offset(size.width, size.height - 40);
-    path.quadraticBezierTo(
-      secondControlPoint.dx,
-      secondControlPoint.dy,
-      secondEndPoint.dx,
-      secondEndPoint.dy,
-    );
-    
+    path.quadraticBezierTo(secondControlPoint.dx, secondControlPoint.dy, secondEndPoint.dx, secondEndPoint.dy);
     path.lineTo(size.width, 0);
     path.close();
     return path;

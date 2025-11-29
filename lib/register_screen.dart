@@ -58,7 +58,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final String baseUrl = 'https://ds.singledeck.in/api/v1/';
 
-  // Responsive scaling functions
   double scaleFont(double size) {
     return size * MediaQuery.of(context).size.width / 375;
   }
@@ -156,13 +155,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: primaryColor,
+              primary: AppColors.primaryDark,
               onPrimary: Colors.white,
               onSurface: Colors.black87,
             ),
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
-                foregroundColor: primaryColor,
+                foregroundColor: AppColors.primaryDark,
               ),
             ),
           ),
@@ -263,13 +262,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       request.fields['zip'] = _zipController.text.trim();
       request.fields['tfn'] = _tfnController.text.trim();
       request.fields['occupation'] = _occupationController.text.trim();
-      request.fields['marital_status'] =
-          _maritalStatus!.toLowerCase() == 'married' ? 'Yes' : 'No';
-      request.fields['employment_status'] =
-          _employmentStatus!.toLowerCase() == 'employed' ||
-              _employmentStatus!.toLowerCase() == 'self-employed'
-          ? 'yes'
-          : 'no';
+      // Send the actual marital status value selected by the user
+request.fields['marital_status'] = _maritalStatus!;
+
+// Send the actual employment status value selected by the user  
+request.fields['employment_status'] = _employmentStatus!;
+
       request.fields['fcm_token'] = _fcmToken;
 
       if (_clntImage != null) {
@@ -295,8 +293,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (responseBody.statusCode == 200 || responseBody.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Registration successful!'),
-            backgroundColor: primaryColor,
+            content: const Text('Registration successful!'),
+            backgroundColor: Colors.green,
           ),
         );
         Navigator.pushReplacementNamed(context, '/login');
@@ -335,15 +333,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background Gradient (35% from top)
+          // Solid #1A0A2A Header (no gradient)
           Container(
             height: height * 0.35,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(scaleWidth(30)),
                 bottomRight: Radius.circular(scaleWidth(30)),
@@ -354,12 +348,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
           SafeArea(
             child: Column(
               children: [
-                // Header
                 _buildHeader(),
-                
                 SizedBox(height: scaleHeight(20)),
-                
-                // Content
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.symmetric(horizontal: scaleWidth(20)),
@@ -409,7 +399,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
           
-          SizedBox(width: scaleWidth(36)), // Balance layout
+          SizedBox(width: scaleWidth(36)),
         ],
       ),
     );
@@ -601,17 +591,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     margin: EdgeInsets.all(scaleWidth(8)),
                     padding: EdgeInsets.all(scaleWidth(8)),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          primaryColor.withOpacity(0.1),
-                          secondaryColor.withOpacity(0.1)
-                        ],
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                      ),
+                      color: AppColors.primaryDark.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(icon, color: primaryColor, size: scaleFont(18)),
+                    child: Icon(icon, color: AppColors.primaryDark, size: scaleFont(18)),
                   )
                 : null,
             filled: true,
@@ -626,7 +609,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: primaryColor, width: 2),
+              borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: scaleWidth(16),
@@ -699,7 +682,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: primaryColor, width: 2),
+              borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
             ),
             contentPadding: EdgeInsets.symmetric(
               horizontal: scaleWidth(16),
@@ -795,7 +778,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
+                    borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: scaleWidth(16),
@@ -891,7 +874,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
+                    borderSide: BorderSide(color: AppColors.primaryDark, width: 2),
                   ),
                   contentPadding: EdgeInsets.symmetric(
                     horizontal: scaleWidth(16),
@@ -952,19 +935,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 Container(
                   padding: EdgeInsets.all(scaleWidth(8)),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        primaryColor.withOpacity(0.1),
-                        secondaryColor.withOpacity(0.1)
-                      ],
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                    ),
+                    color: AppColors.primaryDark.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.photo_camera_outlined,
-                    color: primaryColor,
+                    color: AppColors.primaryDark,
                     size: scaleFont(18),
                   ),
                 ),
@@ -979,7 +955,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               'Selected: ${_clntImage!.name}',
               style: TextStyle(
                 fontSize: scaleFont(12),
-                color: primaryColor,
+                color: AppColors.primaryDark,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -1001,41 +977,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildRegisterButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: GestureDetector(
-        onTap: _isLoading ? null : handleRegister,
-        child: Container(
-          padding: EdgeInsets.symmetric(vertical: scaleHeight(16)),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [primaryColor, secondaryColor],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
+  return SizedBox(
+    width: double.infinity,
+    child: GestureDetector(
+      onTap: _isLoading ? null : handleRegister,
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: scaleHeight(16)),
+        decoration: BoxDecoration(
+          color: AppColors.primaryDark,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              offset: Offset(0, 4),
+              blurRadius: 8,
             ),
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                offset: Offset(0, 4),
-                blurRadius: 8,
-              ),
-            ],
-          ),
-          child: Text(
-            _isLoading ? 'Registering...' : 'Register',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: scaleFont(16),
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+          ],
+        ),
+        child: Text(
+          _isLoading ? 'Registering...' : 'Register',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: scaleFont(16),
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildLoadingOverlay() {
     return Container(
@@ -1050,7 +1022,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: primaryColor),
+              CircularProgressIndicator(color: AppColors.primaryDark),
               SizedBox(height: scaleHeight(16)),
               Text(
                 'Registering...',

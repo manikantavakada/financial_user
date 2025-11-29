@@ -20,9 +20,8 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
   late Future<List<Map<String, dynamic>>> _requestsFuture;
   String selectedFilter = 'All Requests';
   String selectedTopNav = 'Pending';
-  String searchQuery = ''; // Added search query variable
-  TextEditingController searchController =
-      TextEditingController(); // Added controller
+  String searchQuery = '';
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -34,7 +33,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    searchController.dispose(); // Dispose controller
+    searchController.dispose();
     super.dispose();
   }
 
@@ -55,12 +54,12 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
     switch (status) {
       case 'Approved':
       case 'Accepted':
-        return const Color(0xFF4CAF50); // Green
+        return AppColors.green;
       case 'Rejected':
-        return const Color(0xFFE53935); // Red
+        return AppColors.orange;
       case 'Pending':
       default:
-        return const Color(0xFFEA6716); // Orange
+        return AppColors.yellow;
     }
   }
 
@@ -100,7 +99,6 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
     }
   }
 
-  // Updated date formatting to show "Requested: MM/DD"
   String _formatRequestDate(String? dateString) {
     if (dateString == null) return 'N/A';
     try {
@@ -127,86 +125,120 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
     });
   }
 
-  Future<List<Map<String, dynamic>>> _fetchRequests() async {
-    int? clntId = await _getClientIdFromPrefs();
-    if (clntId == null) return [];
+  // Add this helper in your State class
+Future<void> _handleUnauthorized({String message = 'Session expired. Please login again.'}) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.clear();
+  if (!mounted) return;
+  // show small snackbar so user knows what happened
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message), backgroundColor: AppColors.orange, duration: const Duration(seconds: 3)),
+  );
+  // navigate to login (adjust route if yours differs)
+  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+}
 
-    final url =
-        'https://ds.singledeck.in/api/v1/adviser/client-requests-list/?clnt_id=$clntId';
-
-    try {
-      final response = await http.get(Uri.parse(url));
-      debugPrint('=== RAW API RESPONSE ===');
-      debugPrint('Status: ${response.statusCode}');
-      debugPrint('Raw Body: ${response.body}');
-      debugPrint('=== END RAW RESPONSE ===');
-
-      if (response.statusCode == 200) {
-        final resp = json.decode(response.body);
-
-        if (resp['status'] == 'success' &&
-            resp['data'] != null &&
-            resp['data'].isNotEmpty) {
-          final List<dynamic> allRequests = resp['data'][0]['requests'] ?? [];
-
-          debugPrint('=== PARSING REQUESTS ===');
-          debugPrint('Total requests found: ${allRequests.length}');
-
-          return allRequests.map<Map<String, dynamic>>((request) {
-            final Map<String, dynamic> processedRequest = {
-              'avrr_id': request['avrr_id'],
-              'avrr_title': request['avrr_title'],
-              'avrr_desc': request['avrr_desc'],
-              'avrr_status': request['avrr_status'],
-              'avrr_comment': request['avrr_comment'],
-              'avrr_rdate': request['avrr_rdate'],
-              'avrr_ludate': request['avrr_ludate'],
-              'avrr_assigntype': request['avrr_assigntype'],
-              'avrr_advr': request['avrr_advr'],
-              'avrr_clnt': request['avrr_clnt'],
-              'questionnaire': List<Map<String, dynamic>>.from(
-                (request['questionnaire'] ?? []).map(
-                  (q) => Map<String, dynamic>.from(q),
-                ),
-              ),
-              'goals': List<Map<String, dynamic>>.from(
-                (request['goals'] ?? []).map(
-                  (g) => Map<String, dynamic>.from(g),
-                ),
-              ),
-              'additional_needs': List<Map<String, dynamic>>.from(
-                (request['additional_needs'] ?? []).map(
-                  (a) => Map<String, dynamic>.from(a),
-                ),
-              ),
-              'solutions': List<Map<String, dynamic>>.from(
-                (request['solutions'] ?? []).map(
-                  (s) => Map<String, dynamic>.from(s),
-                ),
-              ),
-            };
-
-            debugPrint('=== PROCESSED REQUEST ${request['avrr_id']} ===');
-            debugPrint(
-              'Questionnaire count: ${processedRequest['questionnaire'].length}',
-            );
-            debugPrint('Goals count: ${processedRequest['goals'].length}');
-            debugPrint(
-              'Additional needs count: ${processedRequest['additional_needs'].length}',
-            );
-
-            return processedRequest;
-          }).toList();
-        }
-      }
-    } catch (e) {
-      debugPrint('Fetch requests error: $e');
-    }
-
+// Replace your _fetchRequests() with this
+Future<List<Map<String, dynamic>>> _fetchRequests() async {
+  int? clntId = await _getClientIdFromPrefs();
+  if (clntId == null) {
+    debugPrint('No client_id in prefs');
     return [];
   }
 
-  // Enhanced filtering with search functionality
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('access_token');
+  debugPrint('Has token: ${token != null && token.isNotEmpty}');
+
+  if (token == null || token.isEmpty) {
+    await _handleUnauthorized(message: 'No auth token. Please login.');
+    return [];
+  }
+
+  final url = 'https://ds.singledeck.in/api/v1/adviser/client-requests-list/?clnt_id=$clntId';
+  debugPrint('📡 Fetching requests: $url');
+
+  try {
+    final response = await http.get(
+      Uri.parse(url),
+      headers: {
+        
+        'sessiontoken': token,
+        'sessiontype': 'CLNT',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    ).timeout(const Duration(seconds: 60));
+
+    debugPrint('=== RAW API RESPONSE ===');
+    debugPrint('Response instance: $response');
+    debugPrint('Status: ${response.statusCode}');
+    debugPrint('Raw Body: ${response.body}');
+    debugPrint('=== END RAW RESPONSE ===');
+
+    if (response.statusCode == 401) {
+      // explicit unauthorized from server
+      await _handleUnauthorized(message: 'Authentication Error. Please login again.');
+      return [];
+    }
+
+    if (response.statusCode != 200) {
+      debugPrint('Non-200 status: ${response.statusCode}');
+      return [];
+    }
+
+    final resp = json.decode(response.body);
+
+    if (resp['status'] == 'success' && resp['data'] != null && resp['data'].isNotEmpty) {
+      final List<dynamic> allRequests = resp['data'][0]['requests'] ?? [];
+      debugPrint('Total requests found: ${allRequests.length}');
+
+      return allRequests.map<Map<String, dynamic>>((request) {
+        return {
+          'avrr_id': request['avrr_id'],
+          'avrr_title': request['avrr_title'],
+          'avrr_desc': request['avrr_desc'],
+          'avrr_status': request['avrr_status'],
+          'avrr_comment': request['avrr_comment'],
+          'avrr_rdate': request['avrr_rdate'],
+          'avrr_ludate': request['avrr_ludate'],
+          'avrr_assigntype': request['avrr_assigntype'],
+          'avrr_advr': request['avrr_advr'],
+          'avrr_clnt': request['avrr_clnt'],
+          'questionnaire': List<Map<String, dynamic>>.from((request['questionnaire'] ?? []).map((q) => Map<String, dynamic>.from(q))),
+          'goals': List<Map<String, dynamic>>.from((request['goals'] ?? []).map((g) => Map<String, dynamic>.from(g))),
+          'additional_needs': List<Map<String, dynamic>>.from((request['additional_needs'] ?? []).map((a) => Map<String, dynamic>.from(a))),
+          'solutions': List<Map<String, dynamic>>.from((request['solutions'] ?? []).map((s) => Map<String, dynamic>.from(s))),
+        };
+      }).toList();
+    } else {
+      debugPrint('API returned non-success or empty data: ${resp['status']}');
+    }
+  } on http.ClientException catch (e, st) {
+    debugPrint('ClientException: $e');
+    debugPrint('Stack: $st');
+    // If web, likely CORS issue if server doesn't allow the headers
+    if (e.toString().contains('Failed to fetch')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network/CORS error: server must allow cross-origin requests for web builds.'),
+            duration: Duration(seconds: 6),
+          ),
+        );
+      }
+    }
+  } catch (e, st) {
+    debugPrint('Fetch requests error: $e');
+    debugPrint('Stack: $st');
+  }
+
+  return [];
+}
+
+
+
+
   List<Map<String, dynamic>> _filterRequests(
     List<Map<String, dynamic>> requests,
   ) {
@@ -246,21 +278,21 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
       itemCount: 5,
       itemBuilder: (context, index) {
         return Shimmer.fromColors(
-          baseColor: Colors.grey[300]!,
-          highlightColor: Colors.grey[100]!,
+          baseColor: AppColors.lightGray,
+          highlightColor: textWhite,
           child: Container(
             margin: EdgeInsets.only(bottom: scaleHeight(20)),
             padding: EdgeInsets.all(scaleWidth(20)),
             height: scaleHeight(110),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: textWhite,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: AppColors.primaryDark.withOpacity(0.1),
                   spreadRadius: 1,
                   blurRadius: 8,
-                  offset: Offset(0, 3),
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -276,18 +308,14 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
     final height = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.lightGray,
       body: Stack(
         children: [
-          // Background Gradient (33% from top)
+          // Background Header (33% from top) - Solid color instead of gradient
           Container(
             height: height * 0.33,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [primaryColor, secondaryColor],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              color: AppColors.primaryDark,
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(scaleWidth(20)),
                 bottomRight: Radius.circular(scaleWidth(20)),
@@ -330,7 +358,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
           Text(
             'Advisor Requests',
             style: TextStyle(
-              color: Colors.white,
+              color: AppColors.lightGray,
               fontSize: scaleFont(24),
               fontWeight: FontWeight.bold,
             ),
@@ -354,12 +382,12 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                 child: Container(
                   padding: EdgeInsets.all(scaleWidth(8)),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: AppColors.lightGray.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.add,
-                    color: Colors.white,
+                    color: AppColors.lightGray,
                     size: scaleFont(20),
                   ),
                 ),
@@ -403,14 +431,17 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
         ),
         decoration: BoxDecoration(
           color: isSelected
-              ? Colors.white.withOpacity(0.2)
+              ? AppColors.lightGray.withOpacity(0.3)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
+          border: isSelected
+              ? Border.all(color: AppColors.lightGray, width: 1.5)
+              : null,
         ),
         child: Text(
           title,
           style: TextStyle(
-            color: Colors.white,
+            color: AppColors.lightGray,
             fontSize: scaleFont(14),
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
           ),
@@ -427,18 +458,22 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
       ),
       padding: EdgeInsets.symmetric(horizontal: scaleWidth(15)),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: AppColors.lightGray.withOpacity(0.2),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.lightGray.withOpacity(0.3), width: 1),
       ),
       child: TextField(
         controller: searchController,
-        style: TextStyle(color: Colors.white, fontSize: scaleFont(16)),
+        style: TextStyle(color: AppColors.lightGray, fontSize: scaleFont(16)),
         decoration: InputDecoration(
           hintText: 'Search Requests',
-          hintStyle: TextStyle(color: Colors.white70, fontSize: scaleFont(16)),
+          hintStyle: TextStyle(
+            color: AppColors.lightGray.withOpacity(0.7),
+            fontSize: scaleFont(16),
+          ),
           prefixIcon: Icon(
             Icons.search,
-            color: Colors.white70,
+            color: AppColors.lightGray.withOpacity(0.7),
             size: scaleFont(20),
           ),
           suffixIcon: searchQuery.isNotEmpty
@@ -451,7 +486,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                   },
                   child: Icon(
                     Icons.clear,
-                    color: Colors.white70,
+                    color: AppColors.lightGray.withOpacity(0.7),
                     size: scaleFont(20),
                   ),
                 )
@@ -470,7 +505,8 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
 
   Widget _buildRequestsList() {
     return RefreshIndicator(
-      color: primaryColor,
+      color: AppColors.primaryDark,
+      backgroundColor: textWhite,
       onRefresh: () async {
         _refreshRequests();
         await _requestsFuture;
@@ -495,14 +531,14 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                       Icon(
                         Icons.assignment_outlined,
                         size: scaleFont(80),
-                        color: Colors.grey,
+                        color: textGray,
                       ),
                       SizedBox(height: scaleHeight(16)),
                       Text(
                         'No requests found.',
                         style: TextStyle(
                           fontSize: scaleFont(18),
-                          color: Colors.grey,
+                          color: textGray,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -511,7 +547,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                         'Pull down to refresh or tap + to add a request.',
                         style: TextStyle(
                           fontSize: scaleFont(14),
-                          color: Colors.grey,
+                          color: textGray,
                         ),
                       ),
                     ],
@@ -536,7 +572,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                             ? Icons.search_off
                             : Icons.filter_list_off,
                         size: scaleFont(80),
-                        color: Colors.grey,
+                        color: textGray,
                       ),
                       SizedBox(height: scaleHeight(16)),
                       Text(
@@ -545,7 +581,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                             : 'No requests found for this filter.',
                         style: TextStyle(
                           fontSize: scaleFont(18),
-                          color: Colors.grey,
+                          color: textGray,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -555,7 +591,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                           'Try adjusting your search terms.',
                           style: TextStyle(
                             fontSize: scaleFont(14),
-                            color: Colors.grey,
+                            color: textGray,
                           ),
                         ),
                       ],
@@ -587,16 +623,16 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
     return Container(
       margin: EdgeInsets.only(bottom: scaleHeight(20)),
       padding: EdgeInsets.all(scaleWidth(20)),
-      height: scaleHeight(130), // Increased height for better layout
+      height: scaleHeight(130),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: textWhite,
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.15),
+            color: AppColors.primaryDark.withOpacity(0.1),
             spreadRadius: 1,
             blurRadius: 8,
-            offset: Offset(0, 3),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -630,7 +666,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
               ),
               child: Icon(
                 _getStatusIcon(status),
-                color: Colors.white,
+                color: textWhite,
                 size: scaleFont(25),
               ),
             ),
@@ -645,7 +681,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                   Text(
                     req['avrr_title'] ?? '--',
                     style: TextStyle(
-                      color: Colors.black87,
+                      color: AppColors.primaryDark,
                       fontSize: scaleFont(16),
                       fontWeight: FontWeight.w600,
                     ),
@@ -656,7 +692,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                   Text(
                     'ID: ${req['avrr_id']}',
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: textGray,
                       fontSize: scaleFont(13),
                     ),
                   ),
@@ -664,7 +700,7 @@ class _AdvisorRequestsScreenState extends State<AdvisorRequestsScreen>
                   Text(
                     _formatRequestDate(req['avrr_rdate']),
                     style: TextStyle(
-                      color: Colors.grey[600],
+                      color: textGray,
                       fontSize: scaleFont(12),
                     ),
                   ),

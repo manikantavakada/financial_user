@@ -11,7 +11,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'color_constants.dart';
+
+class AppColors {
+  static const Color primaryDark = Color(0xFF1A0A2A);
+  static const Color lightGray = Color(0xFFF5F5F5);
+}
 
 class AdvisorRequestDetailScreen extends StatefulWidget {
   const AdvisorRequestDetailScreen({super.key});
@@ -28,11 +32,15 @@ class _AdvisorRequestDetailScreenState extends State<AdvisorRequestDetailScreen>
   bool _error = false;
   late TabController _tabController;
 
+  Map<int, String> _questionnaireAnswers = {};
+  Map<int, String> _goalAnswers = {};
   Map<int, String> _additionalNeedAnswers = {};
-  Map<int, TextEditingController> _additionalNeedControllers = {};
+  Map<int, TextEditingController> _textControllers = {};
   Map<int, TextEditingController> _defaultQuestionControllers = {};
   Map<int, String> _defaultQuestionAnswers = {};
 
+  bool _isSubmittingQuestionnaire = false;
+  bool _isSubmittingGoals = false;
   bool _isSubmittingAdditionalNeeds = false;
   bool _isSubmittingDefaultQuestions = false;
 
@@ -64,8 +72,8 @@ class _AdvisorRequestDetailScreenState extends State<AdvisorRequestDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _textControllers.values.forEach((controller) => controller.dispose());
     _defaultQuestionControllers.values.forEach((controller) => controller.dispose());
-    _additionalNeedControllers.values.forEach((controller) => controller.dispose());
     _reviewController.dispose();
     super.dispose();
   }
@@ -93,9 +101,8 @@ class _AdvisorRequestDetailScreenState extends State<AdvisorRequestDetailScreen>
         return;
       }
 
-      // Updated API endpoint
       final url =
-          'https://ds.singledeck.in/api/v1/adviser/client-requests-list/?avrr_id=$avrrId';
+          'https://ds.singledeck.in/api/v1/adviser/client-requests/?avrr_id=$avrrId';
 
       final response = await http.get(
         Uri.parse(url),
@@ -116,28 +123,15 @@ class _AdvisorRequestDetailScreenState extends State<AdvisorRequestDetailScreen>
             data['data'] != null &&
             data['data'] is List &&
             data['data'].isNotEmpty) {
-          
-          // Extract request from nested structure
-          final clientData = data['data'][0];
-          final requests = clientData['requests'] as List;
-          
-          if (requests.isNotEmpty) {
-            setState(() {
-              req = Map<String, dynamic>.from(requests[0]);
-              _loading = false;
-            });
+          setState(() {
+            req = Map<String, dynamic>.from(data['data'][0]);
+            _loading = false;
+          });
 
-            // Initialize both question types
-            _initializeDefaultQuestionAnswers();
-            _initializeAdditionalNeedAnswers();
+          // Initialize default question controllers and answers
+          _initializeDefaultQuestionAnswers();
 
-            _checkExistingPdf(avrrId);
-          } else {
-            setState(() {
-              _error = true;
-              _loading = false;
-            });
-          }
+          _checkExistingPdf(avrrId);
         } else {
           setState(() {
             _error = true;
@@ -193,200 +187,87 @@ class _AdvisorRequestDetailScreenState extends State<AdvisorRequestDetailScreen>
     }
   }
 
-  void _initializeAdditionalNeedAnswers() {
-    final List<dynamic> additionalNeeds = req!['additional_needs'] ?? [];
-    
-    for (var need in additionalNeeds) {
-      final int avraId = need['avra_id'] ?? 0;
-      final List<dynamic> responses = need['response'] ?? [];
-      final String answer = responses.isNotEmpty ? responses[0]['adar_answer'] ?? '' : '';
-      
-      _additionalNeedAnswers[avraId] = answer;
-      
-      final String questionType = need['avra_type'] ?? '';
-      if (questionType == 'BLKQ') {
-        _additionalNeedControllers[avraId] = TextEditingController(text: answer);
-      }
-    }
-  }
-
   Future<void> _submitDefaultQuestionAnswers() async {
-  setState(() {
-    _isSubmittingDefaultQuestions = true;
-  });
+    setState(() {
+      _isSubmittingDefaultQuestions = true;
+    });
 
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('access_token');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('access_token');
 
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
+      if (token == null) {
+        throw Exception('No authentication token found');
+      }
 
-    List<Map<String, dynamic>> answersPayload = [];
-    
-    _defaultQuestionAnswers.forEach((addqId, answer) {
-      if (answer.isNotEmpty) {
-        final question = (req!['advr_default_questions'] as List).firstWhere(
-          (q) => q['addq_id'] == addqId,
-          orElse: () => null,
-        );
-        
-        if (question != null) {
-          final dflqId = question['addq_dflq']['dflq_id'];
+      // Prepare answers payload
+      List<Map<String, dynamic>> answersPayload = [];
+      
+      _defaultQuestionAnswers.forEach((questionId, answer) {
+        if (answer.isNotEmpty) {
           answersPayload.add({
-            'dflq_id': dflqId,
+            'addq_id': questionId,
             'answer': answer,
           });
         }
-      }
-    });
+      });
 
-    // ✅ Correct API endpoint
-    final url = 'https://ds.singledeck.in/api/v1/adviser/add-requests-default-questionnaire-responses/';
+      final url = 'https://ds.singledeck.in/api/v1/adviser/update-default-questions/';
 
-    // ✅ Correct payload structure
-    final payload = {
-      'avrr_id': req!['avrr_id'],
-      'default_qust_answers': answersPayload,
-    };
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Content-Type': 'application/json',
+          'sessiontype': 'CLNT',
+          'sessiontoken': token.trim(),
+        },
+        body: json.encode({
+          'avrr_id': req!['avrr_id'],
+          'answers': answersPayload,
+        }),
+      ).timeout(const Duration(seconds: 30));
 
-    debugPrint('📤 Updating default answers: ${json.encode(payload)}');
+      debugPrint('Update Default Questions Response: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'sessiontype': 'CLNT',
-        'sessiontoken': token.trim(),
-      },
-      body: json.encode(payload),
-    ).timeout(const Duration(seconds: 30));
-
-    debugPrint('Response: ${response.statusCode} - ${response.body}');
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = json.decode(response.body);
-      
-      if (data['status'] == 'success') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Basic questions updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        if (data['status'] == 'success') {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Answers updated successfully!'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+          
+          // Refresh data
+          _fetchRequestDetails(req!['avrr_id']);
+        } else {
+          throw Exception(data['message'] ?? 'Failed to update answers');
         }
-        _fetchRequestDetails(req!['avrr_id']);
       } else {
-        throw Exception(data['message'] ?? 'Failed to update answers');
+        throw Exception('Failed to update answers');
       }
-    } else {
-      final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to update answers: ${response.statusCode}');
-    }
-  } catch (e) {
-    debugPrint('❌ Error: $e');
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    setState(() {
-      _isSubmittingDefaultQuestions = false;
-    });
-  }
-}
-
-Future<void> _submitAdditionalNeedResponses() async {
-  setState(() {
-    _isSubmittingAdditionalNeeds = true;
-  });
-
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('access_token');
-
-    if (token == null) {
-      throw Exception('No authentication token found');
-    }
-
-    List<Map<String, dynamic>> responsesPayload = [];
-    
-    _additionalNeedAnswers.forEach((avraId, answer) {
-      if (answer.isNotEmpty) {
-        responsesPayload.add({
-          'avra_id': avraId,
-          'answer': answer,
-        });
-      }
-    });
-
-    // ✅ Correct API endpoint
-    final url = 'https://ds.singledeck.in/api/v1/adviser/add-requests-additional-responses/';
-
-    // ✅ Correct payload structure
-    final payload = {
-      'additional_answers': responsesPayload,
-    };
-
-    debugPrint('📤 Updating additional needs: ${json.encode(payload)}');
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {
-        'Content-Type': 'application/json',
-        'sessiontype': 'CLNT',
-        'sessiontoken': token.trim(),
-      },
-      body: json.encode(payload),
-    ).timeout(const Duration(seconds: 30));
-
-    debugPrint('Response: ${response.statusCode} - ${response.body}');
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      final data = json.decode(response.body);
+    } catch (e) {
+      debugPrint('Error submitting default question answers: $e');
       
-      if (data['status'] == 'success') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Additional questions updated successfully!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-        _fetchRequestDetails(req!['avrr_id']);
-      } else {
-        throw Exception(data['message'] ?? 'Failed to update responses');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
-    } else {
-      final data = json.decode(response.body);
-      throw Exception(data['message'] ?? 'Failed to update responses: ${response.statusCode}');
+    } finally {
+      setState(() {
+        _isSubmittingDefaultQuestions = false;
+      });
     }
-  } catch (e) {
-    debugPrint('❌ Error: $e');
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  } finally {
-    setState(() {
-      _isSubmittingAdditionalNeeds = false;
-    });
   }
-}
-
 
   Future<void> _submitReview() async {
     if (_rating == 0) {
@@ -457,11 +338,13 @@ Future<void> _submitAdditionalNeedResponses() async {
             );
           }
           
+          // Clear review form
           setState(() {
             _rating = 0;
             _reviewController.clear();
           });
           
+          // Refresh data
           _fetchRequestDetails(req!['avrr_id']);
         } else {
           throw Exception(data['message'] ?? 'Failed to submit review');
@@ -813,15 +696,17 @@ Future<void> _submitAdditionalNeedResponses() async {
             const SizedBox(height: 24),
             _buildPdfViewSection(),
             const SizedBox(height: 24),
-            _buildBasicQuestionsSection(),
+            _buildAdditionalNeedsSection(),
             const SizedBox(height: 24),
-            _buildAdditionalQuestionsSection(),
+            _buildDefaultQuestionsSection(),
             
+            // Show review section only if completed and no review submitted yet
             if (isCompleted && !hasReview) ...[
               const SizedBox(height: 24),
               _buildReviewSection(),
             ],
             
+            // Show submitted review if exists
             if (hasReview) ...[
               const SizedBox(height: 24),
               _buildSubmittedReview(),
@@ -832,39 +717,6 @@ Future<void> _submitAdditionalNeedResponses() async {
     );
   }
 
-  bool _hasChangesInDefaultQuestions() {
-    final List<dynamic> defaultQuestions = req!['advr_default_questions'] ?? [];
-    
-    for (var question in defaultQuestions) {
-      final int questionId = question['addq_id'] ?? 0;
-      final String originalAnswer = question['addq_answer'] ?? '';
-      final String currentAnswer = _defaultQuestionAnswers[questionId] ?? '';
-      
-      if (originalAnswer != currentAnswer) {
-        return true;
-      }
-    }
-    
-    return false;
-  }
-
-  bool _hasChangesInAdditionalNeeds() {
-    final List<dynamic> additionalNeeds = req!['additional_needs'] ?? [];
-    
-    for (var need in additionalNeeds) {
-      final int avraId = need['avra_id'] ?? 0;
-      final List<dynamic> responses = need['response'] ?? [];
-      final String originalAnswer = responses.isNotEmpty ? responses[0]['adar_answer'] ?? '' : '';
-      final String currentAnswer = _additionalNeedAnswers[avraId] ?? '';
-      
-      if (originalAnswer != currentAnswer) {
-        return true;
-      }
-    }
-    
-    return false;
-    
-  }
   Widget _buildReviewSection() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1075,6 +927,7 @@ Future<void> _submitAdditionalNeedResponses() async {
       ),
     );
   }
+
   Widget _buildProgressStepper() {
     final currentStep = _getCurrentProgressStep();
 
@@ -1578,21 +1431,21 @@ Future<void> _submitAdditionalNeedResponses() async {
     );
   }
 
-  // bool _hasChangesInDefaultQuestions() {
-  //   final List<dynamic> defaultQuestions = req!['advr_default_questions'] ?? [];
+  bool _hasChangesInDefaultQuestions() {
+    final List<dynamic> defaultQuestions = req!['advr_default_questions'] ?? [];
     
-  //   for (var question in defaultQuestions) {
-  //     final int questionId = question['addq_id'] ?? 0;
-  //     final String originalAnswer = question['addq_answer'] ?? '';
-  //     final String currentAnswer = _defaultQuestionAnswers[questionId] ?? '';
+    for (var question in defaultQuestions) {
+      final int questionId = question['addq_id'] ?? 0;
+      final String originalAnswer = question['addq_answer'] ?? '';
+      final String currentAnswer = _defaultQuestionAnswers[questionId] ?? '';
       
-  //     if (originalAnswer != currentAnswer) {
-  //       return true;
-  //     }
-  //   }
+      if (originalAnswer != currentAnswer) {
+        return true;
+      }
+    }
     
-  //   return false;
-  // }
+    return false;
+  }
 
   Widget _buildQuestionCard(Map<String, dynamic> need, {required bool isEditable}) {
     final String questionText = need['avra_question'] ?? '';
@@ -1732,7 +1585,302 @@ Future<void> _submitAdditionalNeedResponses() async {
     );
   }
 
-  
+  Widget _buildDefaultQuestionCard(Map<String, dynamic> question, {required bool isEditable}) {
+    final Map<String, dynamic> dflq = question['addq_dflq'] ?? {};
+    final int questionId = question['addq_id'] ?? 0;
+    final String questionText = dflq['dflq_question'] ?? '';
+    final String questionType = dflq['dflq_type'] ?? '';
+    final String originalAnswer = question['addq_answer'] ?? '';
+    
+    // Get current answer from state
+    final String currentAnswer = _defaultQuestionAnswers[questionId] ?? originalAnswer;
+
+    List<String> options = [];
+    if (questionType == 'MULQ') {
+      if (dflq['dflq_option1'] != null) options.add(dflq['dflq_option1']);
+      if (dflq['dflq_option2'] != null) options.add(dflq['dflq_option2']);
+      if (dflq['dflq_option3'] != null) options.add(dflq['dflq_option3']);
+      if (dflq['dflq_option4'] != null) options.add(dflq['dflq_option4']);
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: isEditable && currentAnswer != originalAnswer
+            ? Border.all(color: AppColors.primaryDark.withOpacity(0.5), width: 2)
+            : null,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  questionText,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              if (currentAnswer.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isEditable && currentAnswer != originalAnswer
+                        ? Colors.orange
+                        : AppColors.primaryDark,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    isEditable && currentAnswer != originalAnswer ? 'Modified' : 'Answered',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (currentAnswer.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            if (questionType == 'MULQ' && options.isNotEmpty) ...[
+              ...options.map((option) {
+                final bool isSelected = option == currentAnswer;
+                return GestureDetector(
+                  onTap: isEditable
+                      ? () {
+                          setState(() {
+                            _defaultQuestionAnswers[questionId] = option;
+                          });
+                        }
+                      : null,
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primaryDark.withOpacity(0.1)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: isSelected
+                          ? Border.all(
+                              color: AppColors.primaryDark,
+                              width: 1.5,
+                            )
+                          : null,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          isSelected
+                              ? Icons.check_circle
+                              : Icons.radio_button_unchecked,
+                          color: isSelected
+                              ? AppColors.primaryDark
+                              : const Color(0xFF94A3B8),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            option,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: isSelected
+                                  ? AppColors.primaryDark
+                                  : const Color(0xFF334155),
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                        if (isEditable)
+                          Icon(
+                            Icons.edit,
+                            size: 16,
+                            color: const Color(0xFF94A3B8),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ] else if (questionType == 'TFQS') ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: isEditable
+                          ? () {
+                              setState(() {
+                                _defaultQuestionAnswers[questionId] = 'True';
+                              });
+                            }
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: currentAnswer == 'True'
+                              ? AppColors.primaryDark.withOpacity(0.1)
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: currentAnswer == 'True'
+                              ? Border.all(
+                                  color: AppColors.primaryDark,
+                                  width: 1.5,
+                                )
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              currentAnswer == 'True'
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: currentAnswer == 'True'
+                                  ? AppColors.primaryDark
+                                  : const Color(0xFF94A3B8),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Yes',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: currentAnswer == 'True'
+                                    ? AppColors.primaryDark
+                                    : const Color(0xFF334155),
+                                fontWeight: currentAnswer == 'True'
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: isEditable
+                          ? () {
+                              setState(() {
+                                _defaultQuestionAnswers[questionId] = 'False';
+                              });
+                            }
+                          : null,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: currentAnswer == 'False'
+                              ? AppColors.primaryDark.withOpacity(0.1)
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(8),
+                          border: currentAnswer == 'False'
+                              ? Border.all(
+                                  color: AppColors.primaryDark,
+                                  width: 1.5,
+                                )
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              currentAnswer == 'False'
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: currentAnswer == 'False'
+                                  ? AppColors.primaryDark
+                                  : const Color(0xFF94A3B8),
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'No',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: currentAnswer == 'False'
+                                    ? AppColors.primaryDark
+                                    : const Color(0xFF334155),
+                                fontWeight: currentAnswer == 'False'
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              // BLKQ - Text input
+              TextField(
+                controller: _defaultQuestionControllers[questionId],
+                enabled: isEditable,
+                onChanged: (value) {
+                  setState(() {
+                    _defaultQuestionAnswers[questionId] = value;
+                  });
+                },
+                maxLines: null,
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: isEditable 
+                      ? AppColors.lightGray 
+                      : const Color(0xFFF1F5F9),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(
+                      color: AppColors.primaryDark,
+                      width: 2,
+                    ),
+                  ),
+                  suffixIcon: isEditable
+                      ? Icon(
+                          Icons.edit,
+                          size: 16,
+                          color: const Color(0xFF94A3B8),
+                        )
+                      : null,
+                ),
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF334155),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _buildLoadingScreen() {
     return Scaffold(
@@ -1869,544 +2017,8 @@ Future<void> _submitAdditionalNeedResponses() async {
       ),
     );
   }
-
-
-
-  Widget _buildBasicQuestionsSection() {
-    final List<dynamic> defaultQuestions = req!['advr_default_questions'] ?? [];
-    if (defaultQuestions.isEmpty) return const SizedBox.shrink();
-    
-    final bool isCompleted = req!['avrr_completion_status'] == 'CMPL';
-    final bool isEditable = !isCompleted;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryDark.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.assignment,
-                    color: AppColors.primaryDark,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Basic Questions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ],
-            ),
-            if (isEditable && _hasChangesInDefaultQuestions())
-              ElevatedButton(
-                onPressed: _isSubmittingDefaultQuestions 
-                    ? null 
-                    : _submitDefaultQuestionAnswers,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryDark,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isSubmittingDefaultQuestions
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...defaultQuestions
-            .map((question) => _buildDefaultQuestionCard(question, isEditable: isEditable))
-            .toList(),
-      ],
-    );
-  }
-
-  Widget _buildAdditionalQuestionsSection() {
-    final List<dynamic> additionalNeeds = req!['additional_needs'] ?? [];
-    if (additionalNeeds.isEmpty) return const SizedBox.shrink();
-    
-    final bool isCompleted = req!['avrr_completion_status'] == 'CMPL';
-    final bool isEditable = !isCompleted;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    Icons.help_outline,
-                    color: Colors.orange[700],
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'Additional Questions',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ],
-            ),
-            if (isEditable && _hasChangesInAdditionalNeeds())
-              ElevatedButton(
-                onPressed: _isSubmittingAdditionalNeeds 
-                    ? null 
-                    : _submitAdditionalNeedResponses,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryDark,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 0,
-                ),
-                child: _isSubmittingAdditionalNeeds
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ...additionalNeeds.map((need) => _buildAdditionalNeedCard(need, isEditable: isEditable)).toList(),
-      ],
-    );
-  }
-
-  Widget _buildDefaultQuestionCard(Map<String, dynamic> question, {required bool isEditable}) {
-    final Map<String, dynamic> dflq = question['addq_dflq'] ?? {};
-    final int questionId = question['addq_id'] ?? 0;
-    final String questionText = dflq['dflq_question'] ?? '';
-    final String questionType = dflq['dflq_type'] ?? '';
-    final String originalAnswer = question['addq_answer'] ?? '';
-    
-    final String currentAnswer = _defaultQuestionAnswers[questionId] ?? originalAnswer;
-
-    List<String> options = [];
-    if (questionType == 'MULQ') {
-      if (dflq['dflq_option1'] != null) options.add(dflq['dflq_option1']);
-      if (dflq['dflq_option2'] != null) options.add(dflq['dflq_option2']);
-      if (dflq['dflq_option3'] != null) options.add(dflq['dflq_option3']);
-      if (dflq['dflq_option4'] != null) options.add(dflq['dflq_option4']);
-    } else if (questionType == 'TFQS') {
-      if (dflq['dflq_option1'] != null) options.add(dflq['dflq_option1']);
-      if (dflq['dflq_option2'] != null) options.add(dflq['dflq_option2']);
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: isEditable && currentAnswer != originalAnswer
-            ? Border.all(color: AppColors.primaryDark.withOpacity(0.5), width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  questionText,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              if (currentAnswer.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isEditable && currentAnswer != originalAnswer
-                        ? Colors.orange
-                        : AppColors.primaryDark,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    isEditable && currentAnswer != originalAnswer ? 'Modified' : 'Answered',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (currentAnswer.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            if (questionType == 'MULQ' || questionType == 'TFQS') ...[
-              ...options.map((option) {
-                final bool isSelected = option == currentAnswer;
-                return GestureDetector(
-                  onTap: isEditable
-                      ? () {
-                          setState(() {
-                            _defaultQuestionAnswers[questionId] = option;
-                          });
-                        }
-                      : null,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryDark.withOpacity(0.1)
-                          : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: isSelected
-                          ? Border.all(
-                              color: AppColors.primaryDark,
-                              width: 1.5,
-                            )
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSelected
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: isSelected
-                              ? AppColors.primaryDark
-                              : const Color(0xFF94A3B8),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            option,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isSelected
-                                  ? AppColors.primaryDark
-                                  : const Color(0xFF334155),
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                        if (isEditable)
-                          Icon(
-                            Icons.edit,
-                            size: 16,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ] else ...[
-              TextField(
-                controller: _defaultQuestionControllers[questionId],
-                enabled: isEditable,
-                onChanged: (value) {
-                  setState(() {
-                    _defaultQuestionAnswers[questionId] = value;
-                  });
-                },
-                maxLines: null,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: isEditable 
-                      ? AppColors.lightGray 
-                      : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppColors.primaryDark,
-                      width: 2,
-                    ),
-                  ),
-                  suffixIcon: isEditable
-                      ? Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: const Color(0xFF94A3B8),
-                        )
-                      : null,
-                ),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF334155),
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAdditionalNeedCard(Map<String, dynamic> need, {required bool isEditable}) {
-    final int avraId = need['avra_id'] ?? 0;
-    final String questionText = need['avra_question'] ?? '';
-    final String questionType = need['avra_type'] ?? '';
-    final List<dynamic> responses = need['response'] ?? [];
-    final String originalAnswer = responses.isNotEmpty ? responses[0]['adar_answer'] ?? '' : '';
-    
-    final String currentAnswer = _additionalNeedAnswers[avraId] ?? originalAnswer;
-
-    List<String> options = [];
-    if (questionType == 'MULQ') {
-      if (need['avra_option1'] != null) options.add(need['avra_option1']);
-      if (need['avra_option2'] != null) options.add(need['avra_option2']);
-      if (need['avra_option3'] != null) options.add(need['avra_option3']);
-      if (need['avra_option4'] != null) options.add(need['avra_option4']);
-    } else if (questionType == 'TFQS') {
-      if (need['avra_option1'] != null) options.add(need['avra_option1']);
-      if (need['avra_option2'] != null) options.add(need['avra_option2']);
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: isEditable && currentAnswer != originalAnswer
-            ? Border.all(color: AppColors.primaryDark.withOpacity(0.5), width: 2)
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  questionText,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F172A),
-                  ),
-                ),
-              ),
-              if (currentAnswer.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isEditable && currentAnswer != originalAnswer
-                        ? Colors.orange
-                        : AppColors.primaryDark,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    isEditable && currentAnswer != originalAnswer ? 'Modified' : 'Answered',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          if (currentAnswer.isNotEmpty || isEditable) ...[
-            const SizedBox(height: 12),
-            if (questionType == 'MULQ' || questionType == 'TFQS') ...[
-              ...options.map((option) {
-                final bool isSelected = option == currentAnswer;
-                return GestureDetector(
-                  onTap: isEditable
-                      ? () {
-                          setState(() {
-                            _additionalNeedAnswers[avraId] = option;
-                          });
-                        }
-                      : null,
-                  child: Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primaryDark.withOpacity(0.1)
-                          : const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: isSelected
-                          ? Border.all(
-                              color: AppColors.primaryDark,
-                              width: 1.5,
-                            )
-                          : null,
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isSelected
-                              ? Icons.check_circle
-                              : Icons.radio_button_unchecked,
-                          color: isSelected
-                              ? AppColors.primaryDark
-                              : const Color(0xFF94A3B8),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            option,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isSelected
-                                  ? AppColors.primaryDark
-                                  : const Color(0xFF334155),
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                        if (isEditable)
-                          Icon(
-                            Icons.edit,
-                            size: 16,
-                            color: const Color(0xFF94A3B8),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ] else ...[
-              TextField(
-                controller: _additionalNeedControllers[avraId],
-                enabled: isEditable,
-                onChanged: (value) {
-                  setState(() {
-                    _additionalNeedAnswers[avraId] = value;
-                  });
-                },
-                maxLines: null,
-                decoration: InputDecoration(
-                  hintText: 'Enter your answer...',
-                  filled: true,
-                  fillColor: isEditable 
-                      ? AppColors.lightGray 
-                      : const Color(0xFFF1F5F9),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: AppColors.primaryDark,
-                      width: 2,
-                    ),
-                  ),
-                  suffixIcon: isEditable
-                      ? Icon(
-                          Icons.edit,
-                          size: 16,
-                          color: const Color(0xFF94A3B8),
-                        )
-                      : null,
-                ),
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF334155),
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-    );
-  }
-
-  // Continue with remaining methods (_buildReviewSection, _buildSubmittedReview, 
-  // _buildProgressStepper, etc.) from the previous code...
-  // [Copy all the remaining widget methods from the previous complete code]
 }
 
-// PDFViewerScreen class remains the same
 class PDFViewerScreen extends StatelessWidget {
   final String pdfPath;
   final String requestId;

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'bg.dart';
 import 'color_constants.dart';
+import 'installation_tracker.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -291,6 +292,25 @@ request.fields['employment_status'] = _employmentStatus!;
       final responseBody = await http.Response.fromStream(response);
 
       if (responseBody.statusCode == 200 || responseBody.statusCode == 201) {
+        try {
+        final data = jsonDecode(responseBody.body);
+        
+        // Check if response has client_id
+        if (data['data'] != null && data['data']['clnt_id'] != null) {
+          final int clientId = (data['data']['clnt_id'] is int)
+              ? data['data']['clnt_id']
+              : int.tryParse('${data['data']['clnt_id']}') ?? 0;
+          
+          if (clientId > 0) {
+            await InstallationTracker.trackInstallation(clientId);
+            debugPrint('✅ Installation tracked for new user: client_id=$clientId');
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Installation tracking failed (non-blocking): $e');
+        // Don't block registration if tracking fails
+      }
+      
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Registration successful!'),

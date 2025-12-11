@@ -431,31 +431,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildEmptyState() {
-    return SizedBox(
-      height: scaleHeight(200),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.pie_chart_outline, size: scaleFont(60), color: textGray),
-          SizedBox(height: scaleHeight(16)),
-          Text(
-            'No data available',
-            style: TextStyle(
-              fontSize: scaleFont(16),
-              color: textGray,
-              fontWeight: FontWeight.w500,
-            ),
+  return Container(
+    height: scaleHeight(200),
+    alignment: Alignment.center, // ✅ Center align content
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center, // ✅ Center horizontally
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.pie_chart_outline, size: scaleFont(60), color: textGray),
+        SizedBox(height: scaleHeight(16)),
+        Text(
+          'No data available',
+          style: TextStyle(
+            fontSize: scaleFont(16),
+            color: textGray,
+            fontWeight: FontWeight.w500,
           ),
-          SizedBox(height: scaleHeight(8)),
-          Text(
-            'Create your first advisor request',
-            style: TextStyle(fontSize: scaleFont(14), color: AppColors.textMuted),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        SizedBox(height: scaleHeight(8)),
+        Text(
+          'Create your first advisor request',
+          style: TextStyle(fontSize: scaleFont(14), color: AppColors.textMuted),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _buildShimmerCards() {
     return Column(

@@ -438,6 +438,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ),
+        Container(
+                padding: EdgeInsets.symmetric(
+                  horizontal: scaleWidth(12),
+                  vertical: scaleHeight(6),
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryDark.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: AppColors.primaryDark.withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  'ID: ${clientData?['clnt_uid'] ?? '--'}',
+                  style: TextStyle(
+                    color: AppColors.primaryDark,
+                    fontWeight: FontWeight.w600,
+                    fontSize: scaleFont(12),
+                  ),
+                ),
+              ),
 
         SafeArea(
           child: Column(
@@ -458,6 +479,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             'Full Name',
                             clientData?['clnt_full_name'] ?? 'Not provided',
                           ),
+                          _buildInfoRow(
+                            'ID',
+                            clientData?['clnt_uid'] ?? 'Not provided',
+                          ),
+
                           _buildInfoRow(
                             'Date of Birth',
                             _formatDate(clientData?['clnt_dob']),
@@ -693,24 +719,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: scaleWidth(12),
-                  vertical: scaleHeight(6),
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryDark.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.primaryDark.withOpacity(0.3),
+              
+
+              GestureDetector(
+                onTap: () => Navigator.pushNamed(context, '/change_password'),
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: scaleWidth(6),
+                    vertical: scaleHeight(6),
                   ),
-                ),
-                child: Text(
-                  'ID: ${clientData?['clnt_uid'] ?? '--'}',
-                  style: TextStyle(
-                    color: AppColors.primaryDark,
-                    fontWeight: FontWeight.w600,
-                    fontSize: scaleFont(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryDark.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: AppColors.primaryDark.withOpacity(0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock,
+                        color: AppColors.textOnLight,
+                        size: scaleFont(16),
+                      ),
+                      SizedBox(width: scaleWidth(6)),
+                      Text(
+                        'Change password',
+                        style: TextStyle(
+                          color: AppColors.textOnLight,
+                          fontWeight: FontWeight.w600,
+                          fontSize: scaleFont(12),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

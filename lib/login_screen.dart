@@ -11,6 +11,7 @@ import 'package:encrypt/encrypt.dart' show RSAKeyParser;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bg.dart';
+import 'installation_tracker.dart';
 
 // RSA encryption function (unchanged)
 const String serverPublicKeyPem = """
@@ -79,28 +80,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     _animationController.forward();
 
-    // Mask token for logs
-
-
-
     // Auto-login if already logged in
     _checkLoginStatus();
   }
 
   // Check if user is already logged in
   Future<void> _checkLoginStatus() async {
-  final prefs = await SharedPreferences.getInstance();
-  final accessToken = (prefs.getString('access_token') ?? '').trim();
-  final clientId = prefs.getInt('client_id') ?? -1;
-  debugPrint('Auto-login check: token present=${accessToken.isNotEmpty}, tokenPreview=${_maskToken(accessToken)}, client_id=$clientId');
+    final prefs = await SharedPreferences.getInstance();
+    final accessToken = (prefs.getString('access_token') ?? '').trim();
+    final clientId = prefs.getInt('client_id') ?? -1;
+    debugPrint('Auto-login check: token present=${accessToken.isNotEmpty}, tokenPreview=${_maskToken(accessToken)}, client_id=$clientId');
 
-  if (accessToken.isNotEmpty) {
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+    if (accessToken.isNotEmpty) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     }
   }
-}
-
 
   @override
   void dispose() {
@@ -132,8 +128,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       final password = _passwordController.text.trim();
       if (password.isEmpty) {
         _passwordError = 'Password is required';
-      } else if (!RegExp(r'^\d{5,8}$').hasMatch(password)) {
-        _passwordError = 'Password must be 5-8 digits';
+      } else if (password.length < 5) {
+        // ✅ Changed: Accept any type, minimum 5 characters
+        _passwordError = 'Password must be at least 5 characters';
       } else {
         _passwordError = '';
       }
@@ -143,143 +140,150 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 
   Future<void> handleLogin() async {
-  if (!validateForm()) return;
+    if (!validateForm()) return;
 
-  setState(() {
-    _isLoading = true;
-    _error = '';
-  });
+    setState(() {
+      _isLoading = true;
+      _error = '';
+    });
 
-  final String username = _phoneNumber.isNotEmpty
-      ? _phoneNumber
-      : _emailController.text.trim();
+    final String username = _phoneNumber.isNotEmpty
+        ? _phoneNumber
+        : _emailController.text.trim();
 
-  // Encrypt password
-  final rawPassword = _passwordController.text.trim();
-  final String encryptedPassword = encryptPasswordRSA(rawPassword, serverPublicKeyPem);
+    // Encrypt password
+    final rawPassword = _passwordController.text.trim();
+    final String encryptedPassword = encryptPasswordRSA(rawPassword, serverPublicKeyPem);
 
-  // Log key debug info (DO NOT log raw password)
-  debugPrint('--- LOGIN ATTEMPT ---');
-  debugPrint('username: $username');
-  debugPrint('encryptedPassword (len): ${encryptedPassword.length}');
-  debugPrint('encryptedPassword preview: ${encryptedPassword.length > 10 ? encryptedPassword.substring(0,6) + "..." : encryptedPassword}');
+    // Log key debug info (DO NOT log raw password)
+    debugPrint('--- LOGIN ATTEMPT ---');
+    debugPrint('username: $username');
+    debugPrint('encryptedPassword (len): ${encryptedPassword.length}');
+    debugPrint('encryptedPassword preview: ${encryptedPassword.length > 10 ? encryptedPassword.substring(0,6) + "..." : encryptedPassword}');
 
-  final url = Uri.parse('https://ds.singledeck.in/api/v1/clients/client-login/');
-  const String fcmToken = 'staticfcm1234567890';
+    final url = Uri.parse('https://ds.singledeck.in/api/v1/clients/client-login/');
+    const String fcmToken = 'staticfcm1234567890';
 
-  final body = {
-    "username": username,
-    "password": encryptedPassword,
-    "fcm_token": fcmToken,
-  };
+    final body = {
+      "username": username,
+      "password": encryptedPassword,
+      "fcm_token": fcmToken,
+    };
 
-  // Show request payload (without raw password)
-  debugPrint('POST $url');
-  debugPrint('Request body keys: ${body.keys.toList()}');
-  debugPrint('Request body (json): ${jsonEncode(body)}');
+    // Show request payload (without raw password)
+    debugPrint('POST $url');
+    debugPrint('Request body keys: ${body.keys.toList()}');
+    debugPrint('Request body (json): ${jsonEncode(body)}');
 
-  try {
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(body),
-    ).timeout(const Duration(seconds: 60));
-
-    debugPrint('--- LOGIN RESPONSE ---');
-    debugPrint('Status code: ${response.statusCode}');
-    debugPrint('Response body: ${response.body}');
-
-    // Defensive JSON parse
-    Map<String, dynamic> jsonResponse;
     try {
-      jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
-    } catch (e) {
-      debugPrint('Failed to parse JSON: $e');
-      _showError('Invalid response from server');
-      return;
-    }
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 60));
 
-    if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
-      // Defensive extraction
-      final session = jsonResponse['session_token'];
-      final userData = jsonResponse['user'] as Map<String, dynamic>?;
+      debugPrint('--- LOGIN RESPONSE ---');
+      debugPrint('Status code: ${response.statusCode}');
+      debugPrint('Response body: ${response.body}');
 
-      if (session == null || userData == null) {
-        debugPrint('Login success but missing session or user in response');
-        _showError('Login response missing data');
-        return;
-      }
-
-      String accessToken = '';
-      String refreshToken = '';
-
+      // Defensive JSON parse
+      Map<String, dynamic> jsonResponse;
       try {
-        accessToken = (session['access'] as String).trim();
-        refreshToken = (session['refresh'] as String).trim();
-      } catch (_) {
-        debugPrint('session token fields missing or unexpected structure: $session');
-        _showError('Invalid session token from server');
+        jsonResponse = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (e) {
+        debugPrint('Failed to parse JSON: $e');
+        _showError('Invalid response from server');
         return;
       }
 
-      // Defensive: avoid double "Bearer " if backend returns it already
-      if (accessToken.toLowerCase().startsWith('bearer ')) {
-        accessToken = accessToken.substring(7).trim();
-        debugPrint('Trimmed leading "Bearer " from access token');
+      if (response.statusCode == 200 && jsonResponse['status'] == 'success') {
+        // Defensive extraction
+        final session = jsonResponse['session_token'];
+        final userData = jsonResponse['user'] as Map<String, dynamic>?;
+
+        if (session == null || userData == null) {
+          debugPrint('Login success but missing session or user in response');
+          _showError('Login response missing data');
+          return;
+        }
+
+        String accessToken = '';
+        String refreshToken = '';
+
+        try {
+          accessToken = (session['access'] as String).trim();
+          refreshToken = (session['refresh'] as String).trim();
+        } catch (_) {
+          debugPrint('session token fields missing or unexpected structure: $session');
+          _showError('Invalid session token from server');
+          return;
+        }
+
+        // Defensive: avoid double "Bearer " if backend returns it already
+        if (accessToken.toLowerCase().startsWith('bearer ')) {
+          accessToken = accessToken.substring(7).trim();
+          debugPrint('Trimmed leading "Bearer " from access token');
+        }
+
+        // Save to prefs
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', accessToken);
+        await prefs.setString('refresh_token', refreshToken);
+        await prefs.setString('user_data', jsonEncode(userData));
+        final int clientId = (userData['clnt_id'] is int)
+            ? userData['clnt_id']
+            : int.tryParse('${userData['clnt_id']}') ?? 0;
+        await prefs.setInt('client_id', clientId);
+        await prefs.setBool('is_logged_in', true);
+
+        // Log what's saved (masked)
+        debugPrint('Saved to prefs: access_token=${_maskToken(accessToken)}, refresh_token=${_maskToken(refreshToken)}, client_id=$clientId');
+        final decoded = _decodeJwtPayload(accessToken);
+        debugPrint('access token payload (decoded): $decoded');
+
+        try {
+          await InstallationTracker.trackInstallation(clientId);
+          debugPrint('✅ Installation tracked successfully for client_id: $clientId');
+        } catch (e) {
+          debugPrint('⚠️ Installation tracking failed (non-blocking): $e');
+          // Don't block login if tracking fails
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(jsonResponse['message'] ?? 'Welcome back!'),
+            backgroundColor: Color(0xFF4CAF50),
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } else {
+        // If API sends structured error
+        final errorMsg = jsonResponse['message'] ??
+            jsonResponse['error'] ??
+            jsonResponse['detail'] ??
+            'Invalid phone number or password';
+        debugPrint('Login failed: $errorMsg');
+        _showError(errorMsg);
       }
-
-      // Save to prefs
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', accessToken);
-      await prefs.setString('refresh_token', refreshToken);
-      await prefs.setString('user_data', jsonEncode(userData));
-      final int clientId = (userData['clnt_id'] is int)
-          ? userData['clnt_id']
-          : int.tryParse('${userData['clnt_id']}') ?? 0;
-      await prefs.setInt('client_id', clientId);
-      await prefs.setBool('is_logged_in', true);
-
-      // Log what's saved (masked)
-      debugPrint('Saved to prefs: access_token=${_maskToken(accessToken)}, refresh_token=${_maskToken(refreshToken)}, client_id=$clientId');
-      final decoded = _decodeJwtPayload(accessToken);
-      debugPrint('access token payload (decoded): $decoded');
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(jsonResponse['message'] ?? 'Welcome back!'),
-          backgroundColor: Color(0xFF4CAF50),
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      // If API sends structured error
-      final errorMsg = jsonResponse['message'] ??
-          jsonResponse['error'] ??
-          jsonResponse['detail'] ??
-          'Invalid phone number or password';
-      debugPrint('Login failed: $errorMsg');
-      _showError(errorMsg);
+    } on TimeoutException {
+      debugPrint('Login request timed out');
+      _showError('No internet connection or server is slow');
+    } on SocketException catch (e) {
+      debugPrint('SocketException during login: $e');
+      _showError('No internet connection');
+    } on FormatException catch (e) {
+      debugPrint('FormatException during login: $e');
+      _showError('Invalid response from server');
+    } catch (e, st) {
+      debugPrint('Unexpected login error: $e');
+      debugPrint('Stack: $st');
+      _showError('Something went wrong. Please try again');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } on TimeoutException {
-    debugPrint('Login request timed out');
-    _showError('No internet connection or server is slow');
-  } on SocketException catch (e) {
-    debugPrint('SocketException during login: $e');
-    _showError('No internet connection');
-  } on FormatException catch (e) {
-    debugPrint('FormatException during login: $e');
-    _showError('Invalid response from server');
-  } catch (e, st) {
-    debugPrint('Unexpected login error: $e');
-    debugPrint('Stack: $st');
-    _showError('Something went wrong. Please try again');
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
-
 
   void _showError(String message) {
     setState(() => _error = message);
@@ -495,7 +499,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               child: TextField(
                                 controller: _passwordController,
                                 obscureText: !_showPassword,
-                                keyboardType: TextInputType.number,
+                                keyboardType: TextInputType.text, // ✅ Changed to text
                                 style: TextStyle(fontSize: scaleFont(14), color: Colors.black87),
                                 decoration: InputDecoration(
                                   hintText: 'Enter your password',
@@ -558,7 +562,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                   ],
                                 ),
                                 GestureDetector(
-                                  onTap: () {},
+                                  onTap: () => Navigator.pushNamed(context, '/forgot_password'),
                                   child: Text(
                                     'Forgot password?',
                                     style: TextStyle(
